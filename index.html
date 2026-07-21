@@ -14,6 +14,10 @@
     <img class="wordmark" id="wordmark-img" src="assets/gga-logo-cream.png" alt="GGA — Lake Charles 2026" />
     <div class="header-meta">
       <div class="meta-row" id="meta-date"></div>
+      <div class="sync-indicator" id="sync-indicator" title="">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span class="sync-label" id="sync-label">Local only</span>
+      </div>
       <button class="icon-btn" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
     </div>
   </div>
@@ -56,7 +60,7 @@
   <section class="tab-panel" id="tab-matches">
     <div class="panel-head">
       <h2>Matches</h2>
-      <p class="sub">3 rounds · 12 points on the line. Set the pairings, then record each result as it happens.</p>
+      <p class="sub">3 rounds · 12 points on the line. Set the pairings, then tap each hole as it's played — the final result locks in on its own once a match is decided.</p>
     </div>
     <div id="rounds-container"></div>
   </section>
@@ -94,6 +98,16 @@
     </div>
 
     <div class="card settings-card">
+      <h3>Live Sync <span class="sync-pill" id="sync-pill-settings">Local only</span></h3>
+      <p class="sub">Give every group's phone the same room code and scores update for everyone live, as holes are played. Leave this unconfigured and the app still works fine — just on this device only.</p>
+      <label class="field">
+        <span>Room code</span>
+        <input type="text" id="room-code" maxlength="40" autocomplete="off" />
+      </label>
+      <p class="sub" id="sync-setup-note"></p>
+    </div>
+
+    <div class="card settings-card">
       <h3>Data</h3>
       <p class="sub">Everything is saved to this browser only. Export a backup to share with the commissioner or move it to another device.</p>
       <div class="settings-actions">
@@ -113,6 +127,9 @@
   <span>Ghengis Golf Association · Ryder Cup · Lake Charles</span>
 </footer>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

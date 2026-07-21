@@ -16,12 +16,55 @@ across reloads on the same device.
   1. Round 1: Singles (1v1 match play) — 6 matches
   2. Round 2: Scramble (2v2 match play) — 3 matches
   3. Round 3: Shamble (2v2 match play) — 3 matches
-  Each match lets you pick the golfers from each roster and record Win / Halve / Loss.
+  Each match card has a hole-by-hole tracker — tap who won each hole (or
+  halve it) as you play, and the live status ("2 UP thru 11") updates for
+  everyone watching. The match locks itself in as soon as it's mathematically
+  decided (closes out early, e.g. "3&2", or finishes all square/up thru 18) —
+  no separate step to record the final result. The old quick-pick Win / Halve
+  / Loss buttons still work for any match you'd rather just enter the final
+  score for directly, as long as you haven't started tracking its holes.
 - **Leaderboard** — live team totals, a progress bar of points decided, a
-  clinch banner once a team clears the majority, and a full match-by-match
-  breakdown.
+  clinch banner once a team clears the majority, and a match-by-match
+  breakdown that shows in-progress matches with their live status, not just
+  finished ones.
 - **Settings** — rename both teams, set the tournament date/location, toggle
-  the cream/navy theme, and export/import a JSON backup to sync across devices.
+  the cream/navy theme, set a live-sync room code, and export/import a JSON
+  backup.
+
+## Enable live sync
+
+By default every device keeps its own local copy (via `localStorage`) — great
+for one person running the show, but other groups on the course won't see
+each other's scores update. Wiring up a free Firebase Realtime Database turns
+on live sync so every phone using the same room code sees updates within a
+second or two.
+
+1. Go to the [Firebase console](https://console.firebase.google.com/), sign
+   in with any Google account, and create a new project (no credit card
+   needed — the free Spark plan covers this easily).
+2. In the project, open **Build → Realtime Database** and click **Create
+   Database**. Choose any region, and start in **test mode** for now.
+3. Test mode auto-locks after 30 days. Open the **Rules** tab and replace the
+   rules with:
+   ```json
+   { "rules": { ".read": true, ".write": true } }
+   ```
+   This keeps it open to anyone with the database URL — fine for a private
+   friend league where nothing sensitive is stored (just names and scores),
+   but worth knowing.
+4. Go to **Project settings** (gear icon) → **General** → scroll to **Your
+   apps** → click the web icon (`</>`) to register a web app → copy the
+   `firebaseConfig` object it gives you.
+5. Paste those values into `firebase-config.js` in this repo, replacing the
+   `REPLACE_ME` placeholders.
+6. Deploy/reload the site. The dot next to the date in the header will turn
+   green ("Live") once it connects.
+7. In **Settings**, everyone should enter the same **room code** (anything
+   you like, e.g. `gga-2026`) — that's what keeps your tournament separate
+   from anyone else's if this code is ever reused for another event.
+
+If you skip all of this, the app still works exactly as described above —
+each device just keeps its own local copy instead of a shared one.
 
 ## Editing the logo
 

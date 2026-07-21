@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'gga-ryder-cup-v1';
+  const ROOM_KEY = 'gga-ryder-cup-room';
+  const DEFAULT_ROOM = 'lake-charles-2026';
 
   const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -11,6 +13,7 @@
       a: Array(teamSize).fill(null),
       b: Array(teamSize).fill(null),
       result: null, // null | 'A' | 'B' | 'halve'
+      holes: Array(18).fill(null), // null | 'A' | 'B' | 'halve' per hole
     }));
   }
 
@@ -55,8 +58,150 @@
 
   let state = loadState();
 
+  // ---------- Room code (which synced document this device points at) ----------
+
+  function getRoomCode() {
+    return localStorage.getItem(ROOM_KEY) || DEFAULT_ROOM;
+  }
+
+  function setRoomCode(code) {
+    const clean = (code || '').trim().toLowerCase().replace(/\s+/g, '-') || DEFAULT_ROOM;
+    localStorage.setItem(ROOM_KEY, clean);
+    return clean;
+  }
+
+  // ---------- Live sync (Firebase Realtime Database, optional) ----------
+
+  const FIREBASE_CONFIG = window.FIREBASE_CONFIG || {};
+  const SYNC_ENABLED = !!(
+    FIREBASE_CONFIG.apiKey &&
+    FIREBASE_CONFIG.apiKey !== 'REPLACE_ME' &&
+    FIREBASE_CONFIG.databaseURL &&
+    !String(FIREBASE_CONFIG.databaseURL).includes('REPLACE_ME') &&
+    typeof firebase !== 'undefined'
+  );
+
+  let dbRef = null;
+  let lastPushedJSON = null;
+  let pushTimer = null;
+
+  // Firebase Realtime Database treats `null` as "delete this key," which would
+  // silently wipe out every unplayed hole, unpicked match slot, and undrafted
+  // player's `team` field on the round trip. Swap `null` for a sentinel before
+  // writing, and back again on read, so those stay real nulls locally.
+  const NULL_SENTINEL = '__GGA_NULL__';
+
+  function encodeForFirebase(value) {
+    if (value === null) return NULL_SENTINEL;
+    if (Array.isArray(value)) return value.map(encodeForFirebase);
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.keys(value).forEach((k) => { out[k] = encodeForFirebase(value[k]); });
+      return out;
+    }
+    return value;
+  }
+
+  function decodeFromFirebase(value) {
+    if (value === NULL_SENTINEL) return null;
+    if (Array.isArray(value)) return value.map(decodeFromFirebase);
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.keys(value).forEach((k) => { out[k] = decodeFromFirebase(value[k]); });
+      return out;
+    }
+    return value;
+  }
+
+  function setSyncStatus(status, detail) {
+    const indicator = document.getElementById('sync-indicator');
+    const label = document.getElementById('sync-label');
+    const pillSettings = document.getElementById('sync-pill-settings');
+    const text = { offline: 'Local only', connecting: 'Connecting…', live: 'Live' }[status] || 'Local only';
+    if (indicator) {
+      indicator.className = `sync-indicator ${status}`;
+      indicator.title = detail || text;
+    }
+    if (label) label.textContent = text;
+    if (pillSettings) {
+      pillSettings.className = `sync-pill ${status}`;
+      pillSettings.textContent = text;
+    }
+  }
+
+  function renderSyncSetupNote() {
+    const note = document.getElementById('sync-setup-note');
+    if (!note) return;
+    note.textContent = SYNC_ENABLED
+      ? 'Connected — anyone using this same room code sees updates within a second or two.'
+      : 'Not connected yet. Add your Firebase project details to firebase-config.js to turn this on for every phone at once (see README.md, "Enable live sync").';
+  }
+
+  function attachRoomListener() {
+    if (!SYNC_ENABLED) return;
+    if (dbRef) dbRef.off();
+    setSyncStatus('connecting');
+    const room = getRoomCode();
+    dbRef = firebase.database().ref(`tournaments/${room}`);
+    dbRef.on('value', (snap) => {
+      const remoteRaw = snap.val();
+      if (remoteRaw === null) {
+        // Nothing in this room yet. Seed it atomically so two devices opening
+        // a brand-new room at the same moment can't clobber one another —
+        // only one seed wins, and the loser adopts what actually landed.
+        dbRef.transaction((current) => (current === null ? encodeForFirebase(state) : current))
+          .then((result) => {
+            if (result.committed) {
+              lastPushedJSON = JSON.stringify(result.snapshot.val());
+            } else if (result.snapshot.exists()) {
+              state = decodeFromFirebase(result.snapshot.val());
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+              renderAll();
+            }
+            setSyncStatus('live');
+          })
+          .catch((e) => { console.warn('Seed transaction failed:', e); setSyncStatus('offline', e && e.message); });
+        return;
+      }
+      const remoteRawJSON = JSON.stringify(remoteRaw);
+      if (remoteRawJSON === lastPushedJSON) { setSyncStatus('live'); return; }
+      state = decodeFromFirebase(remoteRaw);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+      setSyncStatus('live');
+    }, (err) => {
+      console.warn('Firebase sync error:', err);
+      setSyncStatus('offline', err && err.message);
+    });
+  }
+
+  function pushToRemote(force) {
+    if (!dbRef) return;
+    const encoded = encodeForFirebase(state);
+    const json = JSON.stringify(encoded);
+    if (!force && json === lastPushedJSON) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => {
+      lastPushedJSON = json;
+      dbRef.set(encoded).catch((e) => console.warn('Sync push failed:', e));
+    }, 250);
+  }
+
+  function initSync() {
+    renderSyncSetupNote();
+    if (!SYNC_ENABLED) { setSyncStatus('offline'); return; }
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      attachRoomListener();
+    } catch (e) {
+      console.warn('Firebase init failed:', e);
+      setSyncStatus('offline', e && e.message);
+    }
+  }
+
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    pushToRemote();
   }
 
   function playerById(id) {
@@ -87,9 +232,83 @@
           if (id === playerId) { touched = true; return null; }
           return id;
         });
-        if (touched) m.result = null;
+        if (touched) {
+          m.result = null;
+          m.holes = Array(18).fill(null);
+        }
       });
     });
+  }
+
+  // ---------- Hole-by-hole match play ----------
+
+  function analyzeHoles(match) {
+    const holes = match.holes || [];
+    const played = holes.filter((h) => h !== null);
+    const thru = played.length;
+    let diff = 0;
+    played.forEach((h) => {
+      if (h === 'A') diff += 1;
+      else if (h === 'B') diff -= 1;
+    });
+    const remaining = 18 - thru;
+    const closedOut = thru > 0 && Math.abs(diff) > remaining;
+    const finished = closedOut || thru >= 18;
+    return { thru, diff, remaining, closedOut, finished };
+  }
+
+  // Once hole-by-hole entry has started for a match, the holes become the
+  // source of truth for its result — overriding whatever the quick-pick
+  // buttons had set, and clearing back to pending if a hole gets undone.
+  function syncResultFromHoles(match) {
+    const info = analyzeHoles(match);
+    if (info.thru === 0) return info;
+    if (info.finished) {
+      match.result = info.diff > 0 ? 'A' : info.diff < 0 ? 'B' : 'halve';
+    } else {
+      match.result = null;
+    }
+    return info;
+  }
+
+  function recordHole(match, winner) {
+    if (!match.holes) match.holes = Array(18).fill(null);
+    const idx = match.holes.findIndex((h) => h === null);
+    if (idx === -1) return;
+    match.holes[idx] = winner;
+    syncResultFromHoles(match);
+  }
+
+  function undoHole(match) {
+    if (!match.holes) match.holes = Array(18).fill(null);
+    let idx = -1;
+    for (let i = match.holes.length - 1; i >= 0; i--) {
+      if (match.holes[i] !== null) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    match.holes[idx] = null;
+    syncResultFromHoles(match);
+  }
+
+  function holeStatus(info, teamAName, teamBName) {
+    if (info.thru === 0) return { text: 'Not started', cls: 'not-started' };
+    if (info.finished) {
+      if (info.diff === 0) return { text: `Halved thru 18`, cls: 'closed' };
+      const winner = info.diff > 0 ? teamAName : teamBName;
+      if (info.closedOut) return { text: `${winner} wins ${Math.abs(info.diff)}&${info.remaining}`, cls: 'closed' };
+      return { text: `${winner} wins, ${Math.abs(info.diff)} up`, cls: 'closed' };
+    }
+    if (info.diff === 0) return { text: `All Square thru ${info.thru}`, cls: '' };
+    const leader = info.diff > 0 ? teamAName : teamBName;
+    return { text: `${leader} ${Math.abs(info.diff)} UP thru ${info.thru}`, cls: '' };
+  }
+
+  function renderHolePips(match) {
+    const holes = match.holes || Array(18).fill(null);
+    return holes.map((h) => {
+      const cls = h === 'A' ? 'a' : h === 'B' ? 'b' : h === 'halve' ? 'halve' : '';
+      return `<span class="hole-pip ${cls}"></span>`;
+    }).join('');
   }
 
   // ---------- Rendering: header ----------
@@ -217,6 +436,10 @@
       .map((p) => p.name);
     const uniqueWarn = [...new Set(warnNames)];
 
+    const info = analyzeHoles(match);
+    const status = holeStatus(info, state.teams.A.name, state.teams.B.name);
+    const manualDisabled = info.thru > 0;
+
     return `
       <div class="match-card" data-round="${round.id}" data-match="${match.id}">
         <div class="match-top">
@@ -229,11 +452,23 @@
           </div>
         </div>
         <div class="match-result">
-          <button class="result-btn win-a ${match.result === 'A' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="A">${escapeHtml(state.teams.A.name)} win</button>
-          <button class="result-btn halve ${match.result === 'halve' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="halve">Halve</button>
-          <button class="result-btn win-b ${match.result === 'B' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="B">${escapeHtml(state.teams.B.name)} win</button>
+          <button class="result-btn win-a ${match.result === 'A' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="A" ${manualDisabled ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} win</button>
+          <button class="result-btn halve ${match.result === 'halve' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="halve" ${manualDisabled ? 'disabled' : ''}>Halve</button>
+          <button class="result-btn win-b ${match.result === 'B' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="B" ${manualDisabled ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} win</button>
         </div>
         ${uniqueWarn.length ? `<div class="match-warn">⚠ ${escapeHtml(uniqueWarn.join(', '))} scheduled in more than one match this round.</div>` : ''}
+        <div class="hole-tracker">
+          <div class="hole-status-row">
+            <span class="hole-status-text ${status.cls}">${escapeHtml(status.text)}</span>
+            <button class="hole-btn undo" data-hole-action="undo" data-round="${round.id}" data-match="${match.id}" ${info.thru === 0 ? 'disabled' : ''}>↺ Undo last hole</button>
+          </div>
+          <div class="hole-controls">
+            <button class="hole-btn" data-hole-action="A" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} wins hole</button>
+            <button class="hole-btn" data-hole-action="halve" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>Halve</button>
+            <button class="hole-btn" data-hole-action="B" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} wins hole</button>
+          </div>
+          <div class="hole-pips">${renderHolePips(match)}</div>
+        </div>
       </div>
     `;
   }
@@ -282,10 +517,12 @@
     const rows = perRound.map(({ round, ra, rb }) => `
       <tr class="lb-round-header"><td colspan="4">${escapeHtml(round.title)} <span style="opacity:.6;font-weight:500;">(${escapeHtml(round.format)})</span></td></tr>
       ${round.matches.map((m, idx) => {
+        const info = analyzeHoles(m);
         let pill = '<span class="pill pending">Pending</span>';
         if (m.result === 'A') pill = `<span class="pill a">${escapeHtml(state.teams.A.name)}</span>`;
         else if (m.result === 'B') pill = `<span class="pill b">${escapeHtml(state.teams.B.name)}</span>`;
         else if (m.result === 'halve') pill = `<span class="pill halve">Halved</span>`;
+        else if (info.thru > 0) pill = `<span class="pill live">${escapeHtml(holeStatus(info, state.teams.A.name, state.teams.B.name).text)}</span>`;
         return `
           <tr>
             <td>Match ${idx + 1}</td>
@@ -328,6 +565,8 @@
     document.getElementById('team-b-name').value = state.teams.B.name;
     document.getElementById('tournament-date').value = state.tournamentDate || '';
     document.getElementById('tournament-location').value = state.location || '';
+    document.getElementById('room-code').value = getRoomCode();
+    renderSyncSetupNote();
   }
 
   function renderAll() {
@@ -396,6 +635,20 @@
         return;
       }
 
+      const holeBtn = e.target.closest('.hole-btn');
+      if (holeBtn) {
+        const { round: roundId, match: matchId, holeAction } = holeBtn.dataset;
+        const round = state.rounds.find((r) => r.id === roundId);
+        const match = round?.matches.find((m) => m.id === matchId);
+        if (match) {
+          if (holeAction === 'undo') undoHole(match); else recordHole(match, holeAction);
+          saveState();
+          renderMatches();
+          renderLeaderboard();
+        }
+        return;
+      }
+
       const resultBtn = e.target.closest('.result-btn');
       if (resultBtn) {
         const { round: roundId, match: matchId, result } = resultBtn.dataset;
@@ -458,19 +711,29 @@
   }
 
   function setupSettingsEvents() {
-    const bindText = (id, path) => {
+    // Setters close over the live `state` variable rather than capturing a
+    // reference to today's state.teams.A — a remote sync can replace `state`
+    // wholesale at any moment, which would otherwise orphan a captured object
+    // and silently swallow edits typed right after that happens.
+    const bindText = (id, setter) => {
       const el = document.getElementById(id);
       el.addEventListener('input', () => {
-        const [obj, key] = path;
-        obj[key] = el.value;
+        setter(el.value);
         saveState();
       });
       el.addEventListener('blur', () => renderAll());
     };
-    bindText('team-a-name', [state.teams.A, 'name']);
-    bindText('team-b-name', [state.teams.B, 'name']);
-    bindText('tournament-date', [state, 'tournamentDate']);
-    bindText('tournament-location', [state, 'location']);
+    bindText('team-a-name', (v) => { state.teams.A.name = v; });
+    bindText('team-b-name', (v) => { state.teams.B.name = v; });
+    bindText('tournament-date', (v) => { state.tournamentDate = v; });
+    bindText('tournament-location', (v) => { state.location = v; });
+
+    const roomInput = document.getElementById('room-code');
+    roomInput.addEventListener('change', () => {
+      setRoomCode(roomInput.value);
+      roomInput.value = getRoomCode();
+      attachRoomListener();
+    });
 
     document.getElementById('export-btn').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -516,5 +779,6 @@
     setupDraftEvents();
     setupSettingsEvents();
     renderAll();
+    initSync();
   });
 })();
