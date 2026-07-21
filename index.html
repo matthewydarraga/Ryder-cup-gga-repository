@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-theme="cream">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GGA Ryder Cup — Lake Charles 2026</title>
+<link rel="icon" type="image/png" href="assets/favicon-64.png" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <img class="wordmark" id="wordmark-img" src="assets/gga-logo-cream.png" alt="GGA — Lake Charles 2026" />
+    <div class="header-meta">
+      <div class="meta-row" id="meta-date"></div>
+      <button class="icon-btn" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-target="draft">Draft Board</button>
+    <button class="tab-btn" data-target="matches">Matches</button>
+    <button class="tab-btn" data-target="leaderboard">Leaderboard</button>
+    <button class="tab-btn" data-target="settings">Settings</button>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- DRAFT BOARD -->
+  <section class="tab-panel active" id="tab-draft">
+    <div class="panel-head">
+      <h2>Draft Board</h2>
+      <p class="sub">First night of the tournament. Build two 6-man squads from the player pool below.</p>
+    </div>
+
+    <div class="draft-clock" id="draft-clock"></div>
+
+    <div class="draft-grid">
+      <div class="card team-card" data-team="A" id="roster-A"></div>
+
+      <div class="card pool-card" id="pool-card">
+        <h3>Player Pool</h3>
+        <div class="pool-list" id="pool-list"></div>
+        <form class="add-player-form" id="add-player-form">
+          <input type="text" id="new-player-name" placeholder="Add a golfer's name…" maxlength="40" autocomplete="off" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="card team-card" data-team="B" id="roster-B"></div>
+    </div>
+  </section>
+
+  <!-- MATCHES -->
+  <section class="tab-panel" id="tab-matches">
+    <div class="panel-head">
+      <h2>Matches</h2>
+      <p class="sub">3 rounds · 12 points on the line. Set the pairings, then record each result as it happens.</p>
+    </div>
+    <div id="rounds-container"></div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section class="tab-panel" id="tab-leaderboard">
+    <div class="panel-head">
+      <h2>Leaderboard</h2>
+    </div>
+    <div id="leaderboard-container"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="tab-panel" id="tab-settings">
+    <div class="panel-head">
+      <h2>Settings</h2>
+    </div>
+    <div class="card settings-card">
+      <label class="field">
+        <span>Team A name</span>
+        <input type="text" id="team-a-name" maxlength="30" />
+      </label>
+      <label class="field">
+        <span>Team B name</span>
+        <input type="text" id="team-b-name" maxlength="30" />
+      </label>
+      <label class="field">
+        <span>Tournament date</span>
+        <input type="date" id="tournament-date" />
+      </label>
+      <label class="field">
+        <span>Location</span>
+        <input type="text" id="tournament-location" maxlength="40" />
+      </label>
+    </div>
+
+    <div class="card settings-card">
+      <h3>Data</h3>
+      <p class="sub">Everything is saved to this browser only. Export a backup to share with the commissioner or move it to another device.</p>
+      <div class="settings-actions">
+        <button class="btn" id="export-btn">Export backup (.json)</button>
+        <label class="btn file-btn">
+          Import backup
+          <input type="file" id="import-input" accept="application/json" hidden />
+        </label>
+        <button class="btn btn-danger" id="reset-btn">Reset everything</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <span>Ghengis Golf Association · Ryder Cup · Lake Charles</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
