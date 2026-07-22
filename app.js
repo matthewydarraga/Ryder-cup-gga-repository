@@ -35,7 +35,6 @@
         B: { name: 'Team Beaks' },
       },
       players: defaultPlayers(),
-      commissionerPin: null,
       rounds: [
         { id: 'r1', title: 'Round 1 — Singles', format: '1v1 Match Play', teamSize: 1, matches: makeMatches(6, 1) },
         { id: 'r2', title: 'Round 2 — Scramble', format: '2v2 Scramble Match Play', teamSize: 2, matches: makeMatches(3, 2) },
@@ -71,20 +70,6 @@
     return clean;
   }
 
-  // ---------- Commissioner access (gates who can award Ryder Cup points) ----------
-  // The PIN itself lives in synced state (anyone can attempt to unlock with
-  // it), but whether *this* device is currently unlocked is local-only —
-  // syncing that would unlock every device the moment one of them did.
-
-  const UNLOCK_KEY = 'gga-ryder-cup-unlocked';
-
-  function isUnlockedLocally() {
-    return localStorage.getItem(UNLOCK_KEY) === '1';
-  }
-
-  function isCommissioner() {
-    return !state.commissionerPin || isUnlockedLocally();
-  }
 
   // ---------- Live sync (Firebase Realtime Database, optional) ----------
 
@@ -273,13 +258,19 @@
     return { thru, diff, remaining, closedOut, finished };
   }
 
-  // Anyone can tap in hole-by-hole progress — recordHole/undoHole never touch
-  // match.result themselves. Only confirmMatchResult (commissioner-gated in
-  // the UI) actually awards the Ryder Cup point for a match.
-  function confirmMatchResult(match) {
+  // The Ryder Cup point is a pure calculation from the 18 holes — nobody
+  // edits it directly. As soon as a match is mathematically decided (closes
+  // out early, e.g. "3&2", or finishes level/up thru 18), this locks in the
+  // result automatically. Undoing a hole un-decides it again if needed.
+  function syncResultFromHoles(match) {
     const info = analyzeHoles(match);
-    if (!info.finished) return;
-    match.result = info.diff > 0 ? 'A' : info.diff < 0 ? 'B' : 'halve';
+    if (info.thru === 0) return info;
+    if (info.finished) {
+      match.result = info.diff > 0 ? 'A' : info.diff < 0 ? 'B' : 'halve';
+    } else {
+      match.result = null;
+    }
+    return info;
   }
 
   function recordHole(match, winner) {
@@ -287,6 +278,7 @@
     const idx = match.holes.findIndex((h) => h === null);
     if (idx === -1) return;
     match.holes[idx] = winner;
+    syncResultFromHoles(match);
   }
 
   function undoHole(match) {
@@ -297,9 +289,7 @@
     }
     if (idx === -1) return;
     match.holes[idx] = null;
-    // Undoing implies something needs correcting — reopen the match so it
-    // isn't left showing an awarded point that no longer matches the holes.
-    match.result = null;
+    syncResultFromHoles(match);
   }
 
   function holeStatus(info, teamAName, teamBName) {
@@ -334,19 +324,6 @@
     const d = state.tournamentDate ? new Date(`${state.tournamentDate}T00:00:00`) : null;
     const dateStr = d && !isNaN(d) ? d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
     dateEl.textContent = [dateStr, state.location].filter(Boolean).join(' · ');
-
-    renderCommissionerIndicator();
-  }
-
-  function renderCommissionerIndicator() {
-    const el = document.getElementById('commissioner-indicator');
-    const label = document.getElementById('commissioner-label');
-    if (!el || !label) return;
-    if (!state.commissionerPin) { el.style.display = 'none'; return; }
-    const unlocked = isUnlockedLocally();
-    el.style.display = 'flex';
-    el.className = `commissioner-indicator ${unlocked ? 'unlocked' : 'locked'}`;
-    label.textContent = unlocked ? '🔓 You can confirm' : '🔒 View only';
   }
 
   // ---------- Rendering: draft board ----------
@@ -463,10 +440,6 @@
 
     const info = analyzeHoles(match);
     const status = holeStatus(info, state.teams.A.name, state.teams.B.name);
-    const commissioner = isCommissioner();
-    // Once a point is officially awarded, hole entry freezes for everyone but
-    // the commissioner — undoing a hole reopens the match (see undoHole).
-    const holesLocked = match.result !== null && !commissioner;
 
     return `
       <div class="match-card" data-round="${round.id}" data-match="${match.id}">
@@ -479,30 +452,18 @@
             ${match.b.map((_, i) => slotSelect(round, match, 'b', i, rosterB, usage)).join('')}
           </div>
         </div>
-        ${commissioner ? `
-        <div class="match-result">
-          <button class="result-btn win-a ${match.result === 'A' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="A">${escapeHtml(state.teams.A.name)} win</button>
-          <button class="result-btn halve ${match.result === 'halve' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="halve">Halve</button>
-          <button class="result-btn win-b ${match.result === 'B' ? 'selected' : ''}" data-round="${round.id}" data-match="${match.id}" data-result="B">${escapeHtml(state.teams.B.name)} win</button>
-        </div>
-        ` : ''}
         ${uniqueWarn.length ? `<div class="match-warn">⚠ ${escapeHtml(uniqueWarn.join(', '))} scheduled in more than one match this round.</div>` : ''}
         <div class="hole-tracker">
           <div class="hole-status-row">
             <span class="hole-status-text ${status.cls}">${escapeHtml(status.text)}</span>
-            <button class="hole-btn undo" data-hole-action="undo" data-round="${round.id}" data-match="${match.id}" ${(info.thru === 0 || holesLocked) ? 'disabled' : ''}>↺ Undo last hole</button>
+            <button class="hole-btn undo" data-hole-action="undo" data-round="${round.id}" data-match="${match.id}" ${info.thru === 0 ? 'disabled' : ''}>↺ Undo last hole</button>
           </div>
           <div class="hole-controls">
-            <button class="hole-btn" data-hole-action="A" data-round="${round.id}" data-match="${match.id}" ${(info.finished || holesLocked) ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} wins hole</button>
-            <button class="hole-btn" data-hole-action="halve" data-round="${round.id}" data-match="${match.id}" ${(info.finished || holesLocked) ? 'disabled' : ''}>Halve</button>
-            <button class="hole-btn" data-hole-action="B" data-round="${round.id}" data-match="${match.id}" ${(info.finished || holesLocked) ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} wins hole</button>
+            <button class="hole-btn" data-hole-action="A" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} wins hole</button>
+            <button class="hole-btn" data-hole-action="halve" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>Halve</button>
+            <button class="hole-btn" data-hole-action="B" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} wins hole</button>
           </div>
           <div class="hole-pips">${renderHolePips(match)}</div>
-          ${info.finished && !match.result ? (
-            commissioner
-              ? `<button class="confirm-result-btn" data-round="${round.id}" data-match="${match.id}">Confirm: ${escapeHtml(status.text)} → award the point</button>`
-              : `<div class="awaiting-confirm">Match decided (${escapeHtml(status.text)}) — waiting for the commissioner to confirm the point.</div>`
-          ) : ''}
         </div>
       </div>
     `;
@@ -558,8 +519,7 @@
         else if (m.result === 'B') pill = `<span class="pill b">${escapeHtml(state.teams.B.name)}</span>`;
         else if (m.result === 'halve') pill = `<span class="pill halve">Halved</span>`;
         else if (info.thru > 0) {
-          const liveText = holeStatus(info, state.teams.A.name, state.teams.B.name).text;
-          pill = `<span class="pill live">${escapeHtml(info.finished ? `${liveText} — awaiting confirmation` : liveText)}</span>`;
+          pill = `<span class="pill live">${escapeHtml(holeStatus(info, state.teams.A.name, state.teams.B.name).text)}</span>`;
         }
         return `
           <tr>
@@ -605,50 +565,6 @@
     document.getElementById('tournament-location').value = state.location || '';
     document.getElementById('room-code').value = getRoomCode();
     renderSyncSetupNote();
-    renderCommissionerSettings();
-  }
-
-  function renderCommissionerSettings() {
-    const pillEl = document.getElementById('commissioner-pill');
-    const controls = document.getElementById('commissioner-controls');
-    if (!pillEl || !controls) return;
-    const hasPin = !!state.commissionerPin;
-    const unlocked = isUnlockedLocally();
-
-    if (!hasPin) {
-      pillEl.className = 'sync-pill';
-      pillEl.textContent = 'Open';
-      controls.innerHTML = `
-        <p class="sub">No PIN set yet — right now anyone can confirm a match and award its Ryder Cup point. Set a PIN to restrict that to just you; live hole-by-hole scoring stays open to everyone either way.</p>
-        <form class="pin-form" data-action="set-pin">
-          <input type="text" inputmode="numeric" maxlength="12" placeholder="Choose a PIN (e.g. 4271)" />
-          <button type="submit" class="btn">Set PIN</button>
-        </form>
-      `;
-    } else if (!unlocked) {
-      pillEl.className = 'sync-pill offline';
-      pillEl.textContent = 'Locked';
-      controls.innerHTML = `
-        <p class="sub">This device is view-only for final results — only a device unlocked with the commissioner PIN can confirm a match and award its point. Live hole-by-hole scoring stays open to everyone.</p>
-        <form class="pin-form" data-action="unlock-pin">
-          <input type="text" inputmode="numeric" maxlength="12" placeholder="Enter commissioner PIN" />
-          <button type="submit" class="btn">Unlock this device</button>
-        </form>
-      `;
-    } else {
-      pillEl.className = 'sync-pill live';
-      pillEl.textContent = 'Unlocked';
-      controls.innerHTML = `
-        <p class="sub">This device can confirm matches and award Ryder Cup points.</p>
-        <div class="settings-actions">
-          <button class="btn" data-action="lock-device">Lock this device</button>
-        </div>
-        <form class="pin-form" data-action="change-pin">
-          <input type="text" inputmode="numeric" maxlength="12" placeholder="Set a new PIN" />
-          <button type="submit" class="btn">Change PIN</button>
-        </form>
-      `;
-    }
   }
 
   function renderAll() {
@@ -722,7 +638,7 @@
         const { round: roundId, match: matchId, holeAction } = holeBtn.dataset;
         const round = state.rounds.find((r) => r.id === roundId);
         const match = round?.matches.find((m) => m.id === matchId);
-        if (match && !(match.result !== null && !isCommissioner())) {
+        if (match) {
           if (holeAction === 'undo') undoHole(match); else recordHole(match, holeAction);
           saveState();
           renderMatches();
@@ -730,75 +646,6 @@
         }
         return;
       }
-
-      const resultBtn = e.target.closest('.result-btn');
-      if (resultBtn) {
-        if (!isCommissioner()) return;
-        const { round: roundId, match: matchId, result } = resultBtn.dataset;
-        const round = state.rounds.find((r) => r.id === roundId);
-        const match = round?.matches.find((m) => m.id === matchId);
-        if (match) {
-          match.result = match.result === result ? null : result;
-          saveState();
-          renderMatches();
-          renderLeaderboard();
-        }
-        return;
-      }
-
-      const confirmBtn = e.target.closest('.confirm-result-btn');
-      if (confirmBtn) {
-        if (!isCommissioner()) return;
-        const { round: roundId, match: matchId } = confirmBtn.dataset;
-        const round = state.rounds.find((r) => r.id === roundId);
-        const match = round?.matches.find((m) => m.id === matchId);
-        if (match) {
-          confirmMatchResult(match);
-          saveState();
-          renderMatches();
-          renderLeaderboard();
-        }
-        return;
-      }
-
-      const lockBtn = e.target.closest('[data-action="lock-device"]');
-      if (lockBtn) {
-        localStorage.removeItem(UNLOCK_KEY);
-        renderCommissionerSettings();
-        renderCommissionerIndicator();
-        renderMatches();
-        return;
-      }
-    });
-
-    main.addEventListener('submit', (e) => {
-      const form = e.target.closest('.pin-form');
-      if (!form) return;
-      e.preventDefault();
-      const input = form.querySelector('input');
-      const value = (input.value || '').trim();
-      const action = form.dataset.action;
-      if (action === 'set-pin') {
-        if (!value) return;
-        state.commissionerPin = value;
-        localStorage.setItem(UNLOCK_KEY, '1');
-        saveState();
-      } else if (action === 'unlock-pin') {
-        if (!value) return;
-        if (value === state.commissionerPin) {
-          localStorage.setItem(UNLOCK_KEY, '1');
-        } else {
-          alert('Incorrect PIN.');
-          return;
-        }
-      } else if (action === 'change-pin') {
-        if (!value) return;
-        state.commissionerPin = value;
-        saveState();
-      }
-      renderCommissionerSettings();
-      renderCommissionerIndicator();
-      renderMatches();
     });
 
     // Name edits: update state live, full re-render on blur so other views sync.

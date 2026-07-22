@@ -18,23 +18,15 @@ across reloads on the same device.
   3. Round 3: Shamble (2v2 match play) — 3 matches
   Each match card has a hole-by-hole tracker — anyone can tap who won each
   hole (or halve it) as it's played, and the live status ("2 UP thru 11")
-  updates for everyone watching. Once a match is mathematically decided
-  (closes out early, e.g. "3&2", or finishes all square/up thru 18), it waits
-  for the commissioner to confirm before the Ryder Cup point is actually
-  awarded — see Commissioner Access below.
+  updates for everyone watching. The Ryder Cup point itself is never entered
+  manually by anyone — it's calculated automatically from the 18 holes the
+  moment a match is mathematically decided (closes out early, e.g. "3&2", or
+  finishes all square/up thru 18). Undoing a hole un-decides the match again
+  if a correction is needed.
 - **Leaderboard** — live team totals, a progress bar of points decided, a
   clinch banner once a team clears the majority, and a match-by-match
   breakdown that shows in-progress matches with their live status, not just
   finished ones.
-- **Commissioner Access** — anyone can tap in live hole-by-hole scores, but
-  only devices unlocked with a PIN can confirm a match's final result or
-  award its point. Set a PIN once in Settings (the device you set it on
-  unlocks automatically); everyone else enters that same PIN to unlock their
-  own device if they ever need to. Leave it unset and it's open to everyone,
-  same as before. This is a lightweight, friendly gate — anyone comfortable
-  poking around browser dev tools could bypass it — not real security, just
-  enough to stop an honest mistake or an overeager teammate from awarding a
-  point early.
 - **Settings** — rename both teams, set the tournament date/location, toggle
   the cream/navy theme, set a live-sync room code, and export/import a JSON
   backup.
