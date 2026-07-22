@@ -380,6 +380,26 @@ main {
   font-weight: 600;
 }
 
+/* Front/back/full point segments */
+.segment-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+.segment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.segment-name { font-weight: 700; }
+.segment-pts { font-weight: 500; opacity: 0.6; font-size: 11px; }
+
 /* Hole-by-hole tracker */
 .hole-tracker {
   margin-top: 12px;
@@ -436,6 +456,14 @@ main {
 .hole-pip.a { background: var(--win-a); border-color: var(--win-a); }
 .hole-pip.b { background: var(--win-b); border-color: var(--win-b); }
 .hole-pip.halve { background: var(--halve); border-color: var(--halve); }
+
+.hole-pip-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--fg);
+  opacity: 0.3;
+  margin: 0 3px;
+}
 
 .pill.live {
   background: var(--halve);
@@ -501,6 +529,16 @@ main {
 }
 .lb-table th { opacity: 0.6; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
 .lb-table tr:last-child td { border-bottom: none; }
+
+.segment-cell-group { display: flex; flex-direction: column; gap: 4px; }
+.segment-cell { display: flex; align-items: center; gap: 6px; }
+.segment-cell-label {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.5;
+  width: 20px;
+  flex-shrink: 0;
+}
 .lb-round-header td { font-weight: 700; background: var(--bg-2); }
 .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .pill.pending { opacity: 0.5; background: var(--bg-2); }

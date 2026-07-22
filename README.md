@@ -12,17 +12,19 @@ across reloads on the same device.
 - **Draft Board** — a 12-golfer pool, snake-style on-the-clock indicator, and
   two 6-man rosters. Golfer names are editable inline; add or remove golfers
   freely before or during the draft.
-- **Matches** — 3 rounds worth 12 total points:
+- **Matches** — 3 rounds, each with matches worth 4 Ryder Cup points apiece
+  (48 points total across the tournament):
   1. Round 1: Singles (1v1 match play) — 6 matches
   2. Round 2: Scramble (2v2 match play) — 3 matches
   3. Round 3: Shamble (2v2 match play) — 3 matches
   Each match card has a hole-by-hole tracker — anyone can tap who won each
-  hole (or halve it) as it's played, and the live status ("2 UP thru 11")
-  updates for everyone watching. The Ryder Cup point itself is never entered
-  manually by anyone — it's calculated automatically from the 18 holes the
-  moment a match is mathematically decided (closes out early, e.g. "3&2", or
-  finishes all square/up thru 18). Undoing a hole un-decides the match again
-  if a correction is needed.
+  hole (or halve it) as it's played. Every match is scored as three
+  independent segments off that same 18-hole record: **front 9 (1 point)**,
+  **back 9 (1 point)**, and **full 18 (2 points)**. Each segment locks in and
+  awards its point automatically the instant it's mathematically decided —
+  win the first 5 holes and the front 9 point is awarded right there (5 up,
+  4 to play), well before the back 9 even starts. Nobody ever enters a point
+  by hand; undoing a hole un-decides whichever segment(s) it affects.
 - **Leaderboard** — live team totals, a progress bar of points decided, a
   clinch banner once a team clears the majority, and a match-by-match
   breakdown that shows in-progress matches with their live status, not just

@@ -12,7 +12,6 @@
       id: uid('m'),
       a: Array(teamSize).fill(null),
       b: Array(teamSize).fill(null),
-      result: null, // null | 'A' | 'B' | 'halve'
       holes: Array(18).fill(null), // null | 'A' | 'B' | 'halve' per hole
     }));
   }
@@ -234,7 +233,6 @@
           return id;
         });
         if (touched) {
-          m.result = null;
           m.holes = Array(18).fill(null);
         }
       });
@@ -243,34 +241,50 @@
 
   // ---------- Hole-by-hole match play ----------
 
-  function analyzeHoles(match) {
-    const holes = match.holes || [];
-    const played = holes.filter((h) => h !== null);
+  // Every Ryder Cup point is a pure calculation from the 18 holes — nobody
+  // edits a point directly, ever. Three segments are scored independently
+  // off the same hole-by-hole record: the front 9 (1 pt), the back 9 (1 pt),
+  // and the full 18 (2 pts) — 4 points per match, same as a standard
+  // front/back/overall member-guest format. Each segment locks in the
+  // instant it's mathematically decided — a 5-0 lead after 5 holes clinches
+  // the front 9 right there (5 up, 4 to play), well before the back 9 even
+  // starts. Undoing a hole un-decides whichever segment(s) it affects.
+
+  const SEGMENTS = [
+    { key: 'front', label: 'Front 9', abbrev: 'F9', start: 0, end: 9, points: 1 },
+    { key: 'back', label: 'Back 9', abbrev: 'B9', start: 9, end: 18, points: 1 },
+    { key: 'full', label: 'Full Match', abbrev: '18', start: 0, end: 18, points: 2 },
+  ];
+
+  function analyzeSegment(holes, start, end) {
+    const slice = holes.slice(start, end);
+    const total = end - start;
+    const played = slice.filter((h) => h !== null);
     const thru = played.length;
     let diff = 0;
     played.forEach((h) => {
       if (h === 'A') diff += 1;
       else if (h === 'B') diff -= 1;
     });
-    const remaining = 18 - thru;
+    const remaining = total - thru;
     const closedOut = thru > 0 && Math.abs(diff) > remaining;
-    const finished = closedOut || thru >= 18;
-    return { thru, diff, remaining, closedOut, finished };
+    const finished = closedOut || thru >= total;
+    return { thru, diff, remaining, closedOut, finished, total };
   }
 
-  // The Ryder Cup point is a pure calculation from the 18 holes — nobody
-  // edits it directly. As soon as a match is mathematically decided (closes
-  // out early, e.g. "3&2", or finishes level/up thru 18), this locks in the
-  // result automatically. Undoing a hole un-decides it again if needed.
-  function syncResultFromHoles(match) {
-    const info = analyzeHoles(match);
-    if (info.thru === 0) return info;
-    if (info.finished) {
-      match.result = info.diff > 0 ? 'A' : info.diff < 0 ? 'B' : 'halve';
-    } else {
-      match.result = null;
-    }
-    return info;
+  function analyzeMatch(match) {
+    const holes = match.holes || Array(18).fill(null);
+    const result = {};
+    SEGMENTS.forEach((seg) => { result[seg.key] = analyzeSegment(holes, seg.start, seg.end); });
+    return result;
+  }
+
+  // null while undecided, else 'A' | 'B' | 'halve'
+  function segmentResult(info) {
+    if (!info.finished) return null;
+    if (info.diff > 0) return 'A';
+    if (info.diff < 0) return 'B';
+    return 'halve';
   }
 
   function recordHole(match, winner) {
@@ -278,7 +292,6 @@
     const idx = match.holes.findIndex((h) => h === null);
     if (idx === -1) return;
     match.holes[idx] = winner;
-    syncResultFromHoles(match);
   }
 
   function undoHole(match) {
@@ -289,13 +302,12 @@
     }
     if (idx === -1) return;
     match.holes[idx] = null;
-    syncResultFromHoles(match);
   }
 
-  function holeStatus(info, teamAName, teamBName) {
+  function segmentStatusText(info, teamAName, teamBName) {
     if (info.thru === 0) return { text: 'Not started', cls: 'not-started' };
     if (info.finished) {
-      if (info.diff === 0) return { text: `Halved thru 18`, cls: 'closed' };
+      if (info.diff === 0) return { text: `Halved thru ${info.total}`, cls: 'closed' };
       const winner = info.diff > 0 ? teamAName : teamBName;
       if (info.closedOut) return { text: `${winner} wins ${Math.abs(info.diff)}&${info.remaining}`, cls: 'closed' };
       return { text: `${winner} wins, ${Math.abs(info.diff)} up`, cls: 'closed' };
@@ -305,11 +317,21 @@
     return { text: `${leader} ${Math.abs(info.diff)} UP thru ${info.thru}`, cls: '' };
   }
 
+  function segmentPill(info, points, teamAName, teamBName) {
+    const res = segmentResult(info);
+    if (res === 'A') return `<span class="pill a">${escapeHtml(teamAName)} +${fmtScore(points)}</span>`;
+    if (res === 'B') return `<span class="pill b">${escapeHtml(teamBName)} +${fmtScore(points)}</span>`;
+    if (res === 'halve') return `<span class="pill halve">Halved (+${fmtScore(points / 2)} each)</span>`;
+    if (info.thru > 0) return `<span class="pill live">${escapeHtml(segmentStatusText(info, teamAName, teamBName).text)}</span>`;
+    return `<span class="pill pending">Pending</span>`;
+  }
+
   function renderHolePips(match) {
     const holes = match.holes || Array(18).fill(null);
-    return holes.map((h) => {
+    return holes.map((h, i) => {
       const cls = h === 'A' ? 'a' : h === 'B' ? 'b' : h === 'halve' ? 'halve' : '';
-      return `<span class="hole-pip ${cls}"></span>`;
+      const divider = i === 9 ? '<span class="hole-pip-divider"></span>' : '';
+      return `${divider}<span class="hole-pip ${cls}"></span>`;
     }).join('');
   }
 
@@ -438,8 +460,8 @@
       .map((p) => p.name);
     const uniqueWarn = [...new Set(warnNames)];
 
-    const info = analyzeHoles(match);
-    const status = holeStatus(info, state.teams.A.name, state.teams.B.name);
+    const segs = analyzeMatch(match);
+    const fullFinished = segs.full.finished;
 
     return `
       <div class="match-card" data-round="${round.id}" data-match="${match.id}">
@@ -453,15 +475,23 @@
           </div>
         </div>
         ${uniqueWarn.length ? `<div class="match-warn">⚠ ${escapeHtml(uniqueWarn.join(', '))} scheduled in more than one match this round.</div>` : ''}
+        <div class="segment-grid">
+          ${SEGMENTS.map((seg) => `
+            <div class="segment-row">
+              <span class="segment-name">${seg.label} <span class="segment-pts">(${seg.points} pt${seg.points === 1 ? '' : 's'})</span></span>
+              ${segmentPill(segs[seg.key], seg.points, state.teams.A.name, state.teams.B.name)}
+            </div>
+          `).join('')}
+        </div>
         <div class="hole-tracker">
           <div class="hole-status-row">
-            <span class="hole-status-text ${status.cls}">${escapeHtml(status.text)}</span>
-            <button class="hole-btn undo" data-hole-action="undo" data-round="${round.id}" data-match="${match.id}" ${info.thru === 0 ? 'disabled' : ''}>↺ Undo last hole</button>
+            <span class="hole-status-text">${segs.full.thru} of 18 holes recorded</span>
+            <button class="hole-btn undo" data-hole-action="undo" data-round="${round.id}" data-match="${match.id}" ${segs.full.thru === 0 ? 'disabled' : ''}>↺ Undo last hole</button>
           </div>
           <div class="hole-controls">
-            <button class="hole-btn" data-hole-action="A" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} wins hole</button>
-            <button class="hole-btn" data-hole-action="halve" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>Halve</button>
-            <button class="hole-btn" data-hole-action="B" data-round="${round.id}" data-match="${match.id}" ${info.finished ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} wins hole</button>
+            <button class="hole-btn" data-hole-action="A" data-round="${round.id}" data-match="${match.id}" ${fullFinished ? 'disabled' : ''}>${escapeHtml(state.teams.A.name)} wins hole</button>
+            <button class="hole-btn" data-hole-action="halve" data-round="${round.id}" data-match="${match.id}" ${fullFinished ? 'disabled' : ''}>Halve</button>
+            <button class="hole-btn" data-hole-action="B" data-round="${round.id}" data-match="${match.id}" ${fullFinished ? 'disabled' : ''}>${escapeHtml(state.teams.B.name)} wins hole</button>
           </div>
           <div class="hole-pips">${renderHolePips(match)}</div>
         </div>
@@ -473,13 +503,17 @@
 
   function computeScores() {
     let a = 0, b = 0;
-    const totalPoints = state.rounds.reduce((s, r) => s + r.matches.length, 0);
+    const totalPoints = state.rounds.reduce((s, r) => s + r.matches.length * 4, 0);
     const perRound = state.rounds.map((round) => {
       let ra = 0, rb = 0;
       round.matches.forEach((m) => {
-        if (m.result === 'A') { a += 1; ra += 1; }
-        else if (m.result === 'B') { b += 1; rb += 1; }
-        else if (m.result === 'halve') { a += 0.5; b += 0.5; ra += 0.5; rb += 0.5; }
+        const segs = analyzeMatch(m);
+        SEGMENTS.forEach((seg) => {
+          const res = segmentResult(segs[seg.key]);
+          if (res === 'A') { a += seg.points; ra += seg.points; }
+          else if (res === 'B') { b += seg.points; rb += seg.points; }
+          else if (res === 'halve') { a += seg.points / 2; b += seg.points / 2; ra += seg.points / 2; rb += seg.points / 2; }
+        });
       });
       return { round, ra, rb };
     });
@@ -513,20 +547,19 @@
     const rows = perRound.map(({ round, ra, rb }) => `
       <tr class="lb-round-header"><td colspan="4">${escapeHtml(round.title)} <span style="opacity:.6;font-weight:500;">(${escapeHtml(round.format)})</span></td></tr>
       ${round.matches.map((m, idx) => {
-        const info = analyzeHoles(m);
-        let pill = '<span class="pill pending">Pending</span>';
-        if (m.result === 'A') pill = `<span class="pill a">${escapeHtml(state.teams.A.name)}</span>`;
-        else if (m.result === 'B') pill = `<span class="pill b">${escapeHtml(state.teams.B.name)}</span>`;
-        else if (m.result === 'halve') pill = `<span class="pill halve">Halved</span>`;
-        else if (info.thru > 0) {
-          pill = `<span class="pill live">${escapeHtml(holeStatus(info, state.teams.A.name, state.teams.B.name).text)}</span>`;
-        }
+        const segs = analyzeMatch(m);
+        const pointsCell = SEGMENTS.map((seg) => `
+          <div class="segment-cell">
+            <span class="segment-cell-label">${seg.abbrev}</span>
+            ${segmentPill(segs[seg.key], seg.points, state.teams.A.name, state.teams.B.name)}
+          </div>
+        `).join('');
         return `
           <tr>
             <td>Match ${idx + 1}</td>
             <td>${escapeHtml(playerNamesForSlots(m.a))}</td>
             <td>${escapeHtml(playerNamesForSlots(m.b))}</td>
-            <td>${pill}</td>
+            <td class="segment-cell-group">${pointsCell}</td>
           </tr>
         `;
       }).join('')}
@@ -550,7 +583,7 @@
       </div>
       ${banner ? `<div class="clinch-banner">${banner}</div>` : ''}
       <table class="lb-table">
-        <thead><tr><th>Match</th><th>${escapeHtml(state.teams.A.name)}</th><th>${escapeHtml(state.teams.B.name)}</th><th>Result</th></tr></thead>
+        <thead><tr><th>Match</th><th>${escapeHtml(state.teams.A.name)}</th><th>${escapeHtml(state.teams.B.name)}</th><th>Points (F9 · B9 · 18)</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
