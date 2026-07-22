@@ -18,6 +18,9 @@
         <span class="sync-dot" id="sync-dot"></span>
         <span class="sync-label" id="sync-label">Local only</span>
       </div>
+      <div class="commissioner-indicator" id="commissioner-indicator" style="display:none;">
+        <span id="commissioner-label"></span>
+      </div>
       <button class="icon-btn" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
     </div>
   </div>
@@ -60,7 +63,7 @@
   <section class="tab-panel" id="tab-matches">
     <div class="panel-head">
       <h2>Matches</h2>
-      <p class="sub">3 rounds · 12 points on the line. Set the pairings, then tap each hole as it's played — the final result locks in on its own once a match is decided.</p>
+      <p class="sub">3 rounds · 12 points on the line. Set the pairings, then anyone can tap each hole as it's played. Once a match is decided, the commissioner confirms it to award the point.</p>
     </div>
     <div id="rounds-container"></div>
   </section>
@@ -95,6 +98,11 @@
         <span>Location</span>
         <input type="text" id="tournament-location" maxlength="40" />
       </label>
+    </div>
+
+    <div class="card settings-card">
+      <h3>Commissioner Access <span class="sync-pill" id="commissioner-pill">Open</span></h3>
+      <div id="commissioner-controls"></div>
     </div>
 
     <div class="card settings-card">

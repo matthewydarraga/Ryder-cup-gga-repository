@@ -16,17 +16,25 @@ across reloads on the same device.
   1. Round 1: Singles (1v1 match play) — 6 matches
   2. Round 2: Scramble (2v2 match play) — 3 matches
   3. Round 3: Shamble (2v2 match play) — 3 matches
-  Each match card has a hole-by-hole tracker — tap who won each hole (or
-  halve it) as you play, and the live status ("2 UP thru 11") updates for
-  everyone watching. The match locks itself in as soon as it's mathematically
-  decided (closes out early, e.g. "3&2", or finishes all square/up thru 18) —
-  no separate step to record the final result. The old quick-pick Win / Halve
-  / Loss buttons still work for any match you'd rather just enter the final
-  score for directly, as long as you haven't started tracking its holes.
+  Each match card has a hole-by-hole tracker — anyone can tap who won each
+  hole (or halve it) as it's played, and the live status ("2 UP thru 11")
+  updates for everyone watching. Once a match is mathematically decided
+  (closes out early, e.g. "3&2", or finishes all square/up thru 18), it waits
+  for the commissioner to confirm before the Ryder Cup point is actually
+  awarded — see Commissioner Access below.
 - **Leaderboard** — live team totals, a progress bar of points decided, a
   clinch banner once a team clears the majority, and a match-by-match
   breakdown that shows in-progress matches with their live status, not just
   finished ones.
+- **Commissioner Access** — anyone can tap in live hole-by-hole scores, but
+  only devices unlocked with a PIN can confirm a match's final result or
+  award its point. Set a PIN once in Settings (the device you set it on
+  unlocks automatically); everyone else enters that same PIN to unlock their
+  own device if they ever need to. Leave it unset and it's open to everyone,
+  same as before. This is a lightweight, friendly gate — anyone comfortable
+  poking around browser dev tools could bypass it — not real security, just
+  enough to stop an honest mistake or an overeager teammate from awarding a
+  point early.
 - **Settings** — rename both teams, set the tournament date/location, toggle
   the cream/navy theme, set a live-sync room code, and export/import a JSON
   backup.
