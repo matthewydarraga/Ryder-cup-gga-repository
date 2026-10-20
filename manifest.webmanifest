@@ -1,0 +1,17 @@
+{
+  "name": "GGA Ryder Cup",
+  "short_name": "GGA Ryder Cup",
+  "description": "GGA annual Ryder Cup golf tournament",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#081b33",
+  "theme_color": "#081b33",
+  "icons": [
+    {
+      "src": "assets/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}
