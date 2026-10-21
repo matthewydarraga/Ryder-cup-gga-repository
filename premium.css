@@ -147,3 +147,10 @@ html[data-gga-theme="carbon"] .hero{background:linear-gradient(118deg,#0d151c,#2
  .gga-history-cover>div{left:18px;right:15px;top:auto;bottom:15px;transform:none}
  .gga-history-cover h3{font-size:38px}
 }
+
+.gga-member-record{display:inline-flex;margin-top:9px;padding:4px 9px;border:1px solid #c49c5b61;border-radius:6px;color:#e4c794;font-size:10px;font-weight:770;letter-spacing:.045em}
+.player-card .meta{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.player-card .meta small{line-height:1.5}
+.player-card .meta strong{font-size:14px;letter-spacing:-.015em}
+.player-card{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+@media(max-width:620px){.gga-member-record{font-size:9px;margin-top:6px}.player-card .meta strong{font-size:12px}}
