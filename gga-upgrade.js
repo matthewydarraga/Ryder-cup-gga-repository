@@ -148,5 +148,5 @@ function applyBranding(){
  if(copy.coverData&&!window.GGA_BACKEND_CONFIGURED){document.documentElement.style.setProperty('--gga-hero-photo','url("'+copy.coverData+'")');document.documentElement.style.setProperty('--gga-default-cover-opacity','0');}
  else if(!copy.coverPath){document.documentElement.style.removeProperty('--gga-hero-photo');document.documentElement.style.setProperty('--gga-default-cover-opacity','1');}
 }
-renderUpgrade();core.showTab('home');
+renderUpgrade();const initialTab=new URLSearchParams(window.location.search).get('tab');core.showTab(['home','history','draft','players','rankings','forge','stats'].includes(initialTab)?initialTab:'home');
 })();
