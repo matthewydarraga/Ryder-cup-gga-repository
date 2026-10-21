@@ -17,8 +17,8 @@ service cloud.firestore {
    allow read: if true;
    allow create,update: if isOwner() || (isSelf(playerId)
     && request.resource.data.keys().hasOnly(['photoPath','fantasyCharacterId','updatedAt'])
-    && request.resource.data.photoPath is string
-    && request.resource.data.photoPath.matches('profile-photos/'+playerId+'/avatar\\.jpg')
+    && (!request.resource.data.keys().hasAny(['photoPath']) || (request.resource.data.photoPath is string
+    && request.resource.data.photoPath.matches('profile-photos/'+playerId+'/avatar\\.jpg')))
     && request.resource.data.updatedAt is timestamp);
    allow delete: if isOwner();
   }
