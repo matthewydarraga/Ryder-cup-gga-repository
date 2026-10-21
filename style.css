@@ -599,3 +599,16 @@ main {
   .hole-controls { grid-template-columns: 1fr 0.5fr 1fr; }
   .hole-btn.undo { grid-column: 1 / -1; }
 }
+
+/* 2026 GGA historical photograph */
+.gga-legacy-feature{margin:0 0 28px;overflow:hidden;border-radius:var(--radius);background:var(--card-bg);border:1px solid var(--line);box-shadow:var(--shadow)}
+.gga-legacy-heading{padding:22px 24px 18px}
+.gga-legacy-eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;opacity:.65}
+.gga-legacy-heading h1{font-size:clamp(25px,4vw,39px);margin:6px 0}
+.gga-legacy-heading p{margin:0;opacity:.7;font-size:13px}
+.gga-legacy-feature>a{display:block;background:#111b23;overflow:hidden}
+.gga-legacy-feature img{display:block;width:100%;height:clamp(260px,52vw,530px);object-fit:cover;object-position:center 66%}
+.gga-legacy-caption{padding:15px 24px 19px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.gga-legacy-caption strong{font-size:15px}
+.gga-legacy-caption span{font-size:12px;opacity:.7}
+@media(max-width:600px){.gga-legacy-heading{padding:18px 16px 14px}.gga-legacy-feature img{height:330px;object-position:center 70%}.gga-legacy-caption{padding:14px 16px}}
