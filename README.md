@@ -1,74 +1,51 @@
-# GGA Ryder Cup — Lake Charles 2026
+# GGA Ryder Cup — 2027 Clubhouse
 
-A single-page site for the Ghengis Golf Association's internal 6v6 Ryder Cup.
+A premium, iPhone-friendly home-screen web app for the GGA Ryder Cup. Hosted on GitHub Pages, with an optional invitation-only Firebase backend for private member accounts and real-time cross-device updates.
 
-No build step, no backend — open `index.html` in a browser, or serve the folder
-with any static file server (e.g. GitHub Pages). All data (rosters, matches,
-scores, team names) is saved to the browser's `localStorage`, so it persists
-across reloads on the same device.
+**Public website:** https://matthewydarraga.github.io/Ryder-cup-gga-repository/
 
-## Features
+## What is available now
 
-- **Draft Board** — a 12-golfer pool, snake-style on-the-clock indicator, and
-  two 6-man rosters. Golfer names are editable inline; add or remove golfers
-  freely before or during the draft.
-- **Matches** — 3 rounds, each with matches worth 4 Ryder Cup points apiece
-  (48 points total across the tournament):
-  1. Round 1: Singles (1v1 match play) — 6 matches
-  2. Round 2: Scramble (2v2 match play) — 3 matches
-  3. Round 3: Shamble (2v2 match play) — 3 matches
-  Each match card has a hole-by-hole tracker — anyone can tap who won each
-  hole (or halve it) as it's played. Every match is scored as three
-  independent segments off that same 18-hole record: **front 9 (1 point)**,
-  **back 9 (1 point)**, and **full 18 (2 points)**. Each segment locks in and
-  awards its point automatically the instant it's mathematically decided —
-  win the first 5 holes and the front 9 point is awarded right there (5 up,
-  4 to play), well before the back 9 even starts. Nobody ever enters a point
-  by hand; undoing a hole un-decides whichever segment(s) it affects.
-- **Leaderboard** — live team totals, a progress bar of points decided, a
-  clinch banner once a team clears the majority, and a match-by-match
-  breakdown that shows in-progress matches with their live status, not just
-  finished ones.
-- **Settings** — rename both teams, set the tournament date/location, toggle
-  the cream/navy theme, set a live-sync room code, and export/import a JSON
-  backup.
+- Midnight-and-gold mobile/desktop clubhouse with alternate owner themes, custom cover, announcements and tournament preview.
+- The full 13-person roster, eleven Louisiana Tech Athletics profile/photo links, and editable profile photographs. Jordan and Reid use their own uploads.
+- Preserved 2026 results from the organizer: six singles, three scrambles and three shambles, with individual win–loss records. Unknown hole cards, official team allocations and final team points are not invented.
+- The 2027 twelve-pick snake draft with six golfers per side and one remaining alternate.
+- Power rankings (depend on manually verified handicap values), 50-character fantasy forge, and a protected-in-the-UI Owner Studio for Matthew.
+- Browser PWA: use **Share → Add to Home Screen** on iPhone.
 
-## Enable live sync
+### Deployment modes
 
-By default every device keeps its own local copy (via `localStorage`) — great
-for one person running the show, but other groups on the course won't see
-each other's scores update. Wiring up a free Firebase Realtime Database turns
-on live sync so every phone using the same room code sees updates within a
-second or two.
+**Preview mode (currently active until Firebase is configured):** Changes and PIN claims exist only on the current device. The site is public, but owner/member permissions are NOT secure and cannot synchronize. Do not invite all players to manage accounts in this mode.
 
-1. Go to the [Firebase console](https://console.firebase.google.com/), sign
-   in with any Google account, and create a new project (no credit card
-   needed — the free Spark plan covers this easily).
-2. In the project, open **Build → Realtime Database** and click **Create
-   Database**. Choose any region, and start in **test mode** for now.
-3. Test mode auto-locks after 30 days. Open the **Rules** tab and replace the
-   rules with:
-   ```json
-   { "rules": { ".read": true, ".write": true } }
-   ```
-   This keeps it open to anyone with the database URL — fine for a private
-   friend league where nothing sensitive is stored (just names and scores),
-   but worth knowing.
-4. Go to **Project settings** (gear icon) → **General** → scroll to **Your
-   apps** → click the web icon (`</>`) to register a web app → copy the
-   `firebaseConfig` object it gives you.
-5. Paste those values into `firebase-config.js` in this repo, replacing the
-   `REPLACE_ME` placeholders.
-6. Deploy/reload the site. The dot next to the date in the header will turn
-   green ("Live") once it connects.
-7. In **Settings**, everyone should enter the same **room code** (anything
-   you like, e.g. `gga-2026`) — that's what keeps your tournament separate
-   from anyone else's if this code is ever reused for another event.
+**Live mode (backend supplied but not yet connected):** Server-verified invitation codes and salted PIN hashes, Firebase Authentication custom tokens, Firestore rules, real-time shared draft/history/handicaps, cloud-stored profile photos and owner-only 2027 scoring.
 
-If you skip all of this, the app still works exactly as described above —
-each device just keeps its own local copy instead of a shared one.
+**Do not claim that secure multi-user accounts work until the Firebase project is provisioned, deployed and tested.**
 
-## Editing the logo
+## Backend activation
 
-The header artwork lives in `assets/gga-logo-cream.png` (light theme) and
-`assets/gga-logo-navy.png` (dark theme), cropped from the original concept art.
+Read [CLOUD_SETUP.md](CLOUD_SETUP.md). Requires a Firebase project owned by Matthew, Firestore, Storage, Authentication (Google provider for one-time owner activation), and deployed Cloud Functions. No Supabase installation or App Store approval required.
+
+### Owner permissions after live activation
+
+Matthew signs in using his own six-to-eight-digit PIN after one-time Google verification. He can customize home copy, headlines, accent theme and cover image; edit historical results, 2027 tournament settings and player handicaps; issue/reset player invitations; edit player profiles and manage draft picks and private scoring.
+
+### Member accounts
+
+Every roster member receives a private one-time invite from Matthew, then claims their own member identity and chooses a 6–8 digit PIN. Members can update their photo and select a fantasy avatar. They can view the archive, public draft and stats. Members cannot change team/draft/history/scoring data on the server.
+
+### 2026 archival data source
+
+The match results came from the previously supplied `GGA_Ryder_Cup.html` project. The exact organizers' notes appear in the 2026 History tab. The original app's hole-by-hole cards and final team totals are not supplied and therefore intentionally remain blank.
+
+### Files
+
+- `index.html`: integrated 2027 app, original roster/50 fantasy characters and match engine.
+- `premium.css`: premium design system.
+- `gga-upgrade.js`: clubhouse preview, 2026 history, draft board and owner editor.
+- `gga-cloud.js`: Firebase client adapter that activates only after configuration.
+- `functions/index.js`: secure account invitations, PIN verification, owner bootstrap and resets.
+- `firestore.rules`, `storage.rules`: server-enforced authorization.
+- `firebase-config.js`: public Firebase web project configuration (no private keys).
+- `sw.js`, `manifest.webmanifest`: installable PWA and offline support.
+
+**Security:** Never commit Firebase Admin credentials, service account JSON, a Firebase service-role key, or a secret owner PIN. Browser-local restrictions are not a security boundary.
