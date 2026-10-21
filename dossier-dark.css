@@ -113,3 +113,45 @@ body{background:#0b0c13!important;color:#f3f3fa!important}
  .gga-dossier-trophies>div>span{font-size:34px}
  #players #player-detail{border-radius:12px}
 }
+
+/* Athlete explorer layout: reference-style roster rail and dominant profile dashboard */
+#players.view.active{display:grid!important;grid-template-columns:190px minmax(0,1fr);gap:16px;align-items:start}
+#players>.section-top{grid-column:1/-1;margin-bottom:2px!important}
+#players>#player-grid{grid-column:1;grid-row:2;display:flex!important;flex-direction:column;gap:7px;margin:0!important;max-height:calc(100vh - 185px);overflow-y:auto;overflow-x:hidden;position:sticky;top:72px;scrollbar-width:thin;padding:3px 4px 9px 1px}
+#players>#player-detail{grid-column:2;grid-row:2;min-width:0}
+#players .player-card{width:100%;flex:0 0 auto;min-height:72px!important;padding:8px!important;gap:9px!important;border-radius:10px!important}
+#players .player-card .avatar.lg{flex:0 0 46px!important;width:46px!important;height:57px!important;border-radius:7px!important}
+#players .player-card .meta strong{font-size:11px!important;line-height:1.25!important}
+#players .player-card .meta small{font-size:9px!important;max-height:16px;overflow:hidden}
+#players .player-card .gga-member-record{display:none}
+#players .player-card.selected{border-color:#ffe042!important;background:#343028!important}
+#players .player-card .meta{gap:4px}
+#players #player-detail{margin:0}
+@media(max-width:900px){
+ #players.view.active{grid-template-columns:136px minmax(0,1fr);gap:10px}
+ #players>#player-grid{top:60px}
+ #players .player-card .avatar.lg{flex-basis:38px!important;width:38px!important;height:48px!important}
+ #players .player-card .meta strong{font-size:10px!important}
+ #players .player-card .meta small{font-size:8px!important}
+ .gga-dossier-hero{grid-template-columns:1fr!important}
+ .gga-dossier-portrait{min-height:280px;height:280px;order:-1}
+ .gga-dossier-bio{padding:25px!important}
+}
+@media(max-width:680px){
+ #players.view.active{grid-template-columns:1fr;gap:10px}
+ #players>.section-top{grid-column:1;grid-row:1;margin-bottom:4px!important}
+ #players>#player-grid{grid-column:1;grid-row:2;position:static;display:flex!important;flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none;gap:7px;padding:4px 1px 12px;margin:0!important;scroll-snap-type:x mandatory;scrollbar-width:none}
+ #players>#player-grid::-webkit-scrollbar{display:none}
+ #players>#player-detail{grid-column:1;grid-row:3}
+ #players .player-card{min-width:95px!important;max-width:95px;width:95px!important;height:112px!important;min-height:112px!important;flex:0 0 95px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;padding:8px 5px!important;gap:7px!important;scroll-snap-align:start}
+ #players .player-card:before{width:0!important;height:3px!important;top:0!important;left:0;right:0;bottom:auto!important}
+ #players .player-card .avatar.lg{width:51px!important;height:63px!important;flex:0 0 63px!important;border-radius:7px}
+ #players .player-card .meta{align-items:center!important;text-align:center!important;gap:0!important;width:100%}
+ #players .player-card .meta strong{font-size:9px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px}
+ #players .player-card .meta small{display:none!important}
+ #players .player-card.selected{box-shadow:0 0 0 1px #ffe247a6!important}
+ .gga-dossier-hero{display:flex!important;flex-direction:column}
+ .gga-dossier-bio{padding:24px 20px!important}
+ .gga-dossier-bio h2{font-size:clamp(38px,9.5vw,54px)!important}
+ .gga-dossier-layout{padding:10px!important}
+}
