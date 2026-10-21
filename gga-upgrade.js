@@ -135,7 +135,7 @@ window.GGA_ON_TAB=()=>renderMobileTab();
 const ownerPanel=document.createElement('div');ownerPanel.className='panel panel-pad gga-owner-brand';ownerPanel.innerHTML='<div class="kicker">Art direction</div><h3>Clubhouse branding & visuals</h3><div class="form-row"><label class="form-field">2027 headline<input id="gga-owner-headline" maxlength="100" placeholder="The rivalry never rests."></label><label class="form-field">Visual theme<select id="gga-owner-theme"><option value="midnight">Midnight & Gold</option><option value="forest">Pine Green & Gold</option><option value="royal">Royal Blue & Gold</option><option value="carbon">Carbon Black & Platinum</option></select></label></div><p class="subtext" style="margin:15px 0 10px">Replace the 2027 promotional cover with your own GGA image. The original 2026 group photo remains in the history archive.</p><div class="flex"><label for="gga-owner-cover" class="btn btn-secondary">Upload new 2027 cover</label><input type="file" id="gga-owner-cover" accept="image/*" hidden><button class="btn btn-secondary" id="gga-owner-reset-cover" type="button">Restore group photo</button></div>';
 $('#owner').insertBefore(ownerPanel,$('#owner').querySelector('.panel'));
 $('#gga-owner-cover').addEventListener('change',async e=>{const file=e.target.files[0];if(!file||!core.isOwner())return;if(window.GGA_BACKEND_CONFIGURED){if(window.GGA_UPLOAD_BRANDING)await window.GGA_UPLOAD_BRANDING(file);else core.notify('Cloud storage is loading.');}else{const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=1400;c.height=Math.round(img.naturalHeight*1400/img.naturalWidth);c.getContext('2d').drawImage(img,0,0,c.width,c.height);state.clubhouse.coverData=c.toDataURL('image/jpeg',.75);core.save();core.render();core.notify('2027 cover saved to this device.');};img.src=reader.result;};reader.readAsDataURL(file);}e.target.value='';});
-$('#gga-owner-reset-cover').addEventListener('click',()=>{if(!core.isOwner())return;delete state.clubhouse.coverPath;delete state.clubhouse.coverData;document.documentElement.style.removeProperty('--gga-hero-photo');core.save();core.render();core.notify('Original 2026 photo restored on the 2027 homepage.');});
+$('#gga-owner-reset-cover').addEventListener('click',()=>{if(!core.isOwner())return;delete state.clubhouse.coverPath;delete state.clubhouse.coverData;document.documentElement.style.removeProperty('--gga-hero-photo');document.documentElement.style.setProperty('--gga-default-cover-opacity','1');core.save();core.render();core.notify('Original 2026 photo restored on the 2027 homepage.');});
 function applyBranding(){
  const copy=state.clubhouse||{};
  const label=$('#home .gga-promo h2');if(label)label.textContent=copy.headline||'The rivalry never rests.';
@@ -143,9 +143,10 @@ function applyBranding(){
  const palette=themes[copy.theme]||themes.midnight;
  document.documentElement.style.setProperty('--gga-gold',palette[0]);
  document.documentElement.style.setProperty('--gga-gold-strong',palette[1]);
+ document.documentElement.dataset.ggaTheme=copy.theme||'midnight';
  document.documentElement.style.setProperty('--gga-bg',palette[2]);
- if(copy.coverData&&!window.GGA_BACKEND_CONFIGURED)document.documentElement.style.setProperty('--gga-hero-photo','url("'+copy.coverData+'")');
- else if(!copy.coverPath)document.documentElement.style.removeProperty('--gga-hero-photo');
+ if(copy.coverData&&!window.GGA_BACKEND_CONFIGURED){document.documentElement.style.setProperty('--gga-hero-photo','url("'+copy.coverData+'")');document.documentElement.style.setProperty('--gga-default-cover-opacity','0');}
+ else if(!copy.coverPath){document.documentElement.style.removeProperty('--gga-hero-photo');document.documentElement.style.setProperty('--gga-default-cover-opacity','1');}
 }
 renderUpgrade();core.showTab('home');
 })();
