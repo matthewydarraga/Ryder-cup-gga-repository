@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signedIn(){return request.auth != null;}
+  function accountActive(){
+   return signedIn() && request.auth.token.username is string &&
+    exists(/databases/$(database)/documents/accounts/$(request.auth.token.username)) &&
+    get(/databases/$(database)/documents/accounts/$(request.auth.token.username)).data.uid == request.auth.uid;
+  }
+  function isOwner(){return accountActive() && request.auth.token.owner == true && request.auth.token.username == 'matthew.ydarraga';}
+  function isSelf(playerId){return accountActive() && request.auth.token.playerId == playerId;}
+  match /public/clubhouse {
+   allow read: if true;
+   allow create,update,delete: if isOwner();
+  }
+  match /profiles/{playerId} {
+   allow read: if true;
+   allow create,update: if isOwner() || (isSelf(playerId)
+    && request.resource.data.keys().hasOnly(['photoPath','fantasyCharacterId','updatedAt'])
+    && request.resource.data.photoPath is string
+    && request.resource.data.photoPath.matches('profile-photos/'+playerId+'/avatar\\.jpg')
+    && request.resource.data.updatedAt is timestamp);
+   allow delete: if isOwner();
+  }
+  match /private/live2027 {
+   allow read,write: if isOwner();
+  }
+  match /accounts/{id} {allow read,write: if false;}
+  match /invites/{id} {allow read,write: if false;}
+  match /{document=**} {allow read,write: if false;}
+ }
+}
