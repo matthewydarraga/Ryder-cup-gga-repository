@@ -1,13 +1,21 @@
 {
-  "name": "GGA Ryder Cup",
-  "short_name": "GGA Ryder Cup",
-  "description": "GGA annual Ryder Cup golf tournament",
+  "id": "./",
+  "name": "GGA Ryder Cup — 2027 Clubhouse",
+  "short_name": "GGA 2027",
+  "description": "GGA Ryder Cup · 2026 official history · 2027 draft · player profiles",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#081b33",
-  "theme_color": "#081b33",
+  "orientation": "portrait-primary",
+  "background_color": "#081725",
+  "theme_color": "#091d2f",
   "icons": [
+    {
+      "src": "assets/gga-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "assets/favicon-64.png",
       "sizes": "64x64",
