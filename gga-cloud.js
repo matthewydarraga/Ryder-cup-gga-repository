@@ -28,7 +28,7 @@ if(!backendConfigured){
  const fn=name=>fnMod.httpsCallable(functions,name);
  const getStatus=fn('accountStatus'),logIn=fn('signInWithPin'),claim=fn('claimPin'),bootstrap=fn('bootstrapOwner'),createInvite=fn('createInvite'),resetMember=fn('resetMemberPin');
  const s=gga.getState();let suppress=false,ownerReady=false,initialPublic=false,privateUnsubscribe=null,publishTimer=null,ready=false;
- let currentUid=null;
+ let currentUid=null;const profileCache=new Map();
  const formatError=e=>String(e?.message||e||'Something went wrong').replace(/^FirebaseError:\s*/,'').replace(/functions\/[\w-]+/g,'').slice(0,230);
  function serialize(){
    const season2026=s.seasons.find(x=>x.year===2026),future=s.seasons.find(x=>x.year===2027);
@@ -46,7 +46,7 @@ if(!backendConfigured){
    suppress=true;
    try{
     const old=new Map(s.players.map(p=>[p.id,p])),season2026=s.seasons.find(x=>x.year===2026),season2027=s.seasons.find(x=>x.year===2027);
-    s.players=data.players.map(p=>({...old.get(p.id),...p,customPhoto:old.get(p.id)?.customPhoto||null,ghinNumber:old.get(p.id)?.ghinNumber||''}));
+    s.players=data.players.map(p=>({...old.get(p.id),...p,customPhoto:old.get(p.id)?.customPhoto||null,ghinNumber:old.get(p.id)?.ghinNumber||'',fantasyCharacterId:profileCache.get(p.id)?.fantasyCharacterId??p.fantasyCharacterId}));
     if(data.season2026){if(season2026)Object.assign(season2026,data.season2026);else s.seasons.push(data.season2026);}
     if(data.season2027){if(season2027)Object.assign(season2027,{...data.season2027,rounds:season2027.rounds});else s.seasons.push(data.season2027);}
     if(data.clubhouse)s.clubhouse={...s.clubhouse,...data.clubhouse};
@@ -83,7 +83,7 @@ if(!backendConfigured){
  const profilesUnsub=fireMod.onSnapshot(fireMod.collection(db,'profiles'),async snapshot=>{
   for(const change of snapshot.docChanges()){
    if(change.type==='removed')continue;
-   const record=change.doc.data(),player=s.players.find(p=>p.id===change.doc.id);
+   const record=change.doc.data(),player=s.players.find(p=>p.id===change.doc.id);profileCache.set(change.doc.id,record);
    if(!player)continue;
    if(record.fantasyCharacterId)player.fantasyCharacterId=record.fantasyCharacterId;
    if(record.photoPath){
