@@ -41,12 +41,21 @@ jobs:
           grep -q 'data-profile="player-reid-mixon"' /tmp/gga-rendered.html
           grep -q 'id="gga-home-stats"><div>' /tmp/gga-rendered.html
           "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --window-size=390,844 --screenshot=gga-mobile-preview.png http://127.0.0.1:8765/ >/dev/null 2>/tmp/gga-mobile-chrome.log || true
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --window-size=390,1000 --screenshot=gga-history-preview.png 'http://127.0.0.1:8765/?tab=history' >/dev/null 2>/tmp/gga-history-chrome.log || true
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --window-size=390,1000 --screenshot=gga-players-preview.png 'http://127.0.0.1:8765/?tab=players' >/dev/null 2>/tmp/gga-players-chrome.log || true
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --window-size=390,1000 --screenshot=gga-draft-preview.png 'http://127.0.0.1:8765/?tab=draft' >/dev/null 2>/tmp/gga-draft-chrome.log || true
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --window-size=1440,1000 --screenshot=gga-desktop-preview.png http://127.0.0.1:8765/ >/dev/null 2>/tmp/gga-desktop-chrome.log || true
           echo "Rendered 13-player clubhouse and homepage stats in headless Chrome."
       - name: Save phone preview from visual smoke test
         uses: actions/upload-artifact@v4
         with:
-          name: gga-mobile-preview
-          path: gga-mobile-preview.png
+          name: gga-design-previews
+          path: |
+            gga-mobile-preview.png
+            gga-history-preview.png
+            gga-players-preview.png
+            gga-draft-preview.png
+            gga-desktop-preview.png
           if-no-files-found: ignore
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
