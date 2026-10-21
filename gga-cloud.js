@@ -58,8 +58,8 @@ if(!backendConfigured){
  }
  async function loadCover(){
   const path=s.clubhouse?.coverPath;
-  if(!path){document.documentElement.style.removeProperty('--gga-hero-photo');return;}
-  try{const url=await storeMod.getDownloadURL(storeMod.ref(storage,path));if(s.clubhouse?.coverPath===path)document.documentElement.style.setProperty('--gga-hero-photo',`url("${url}")`);}catch(e){console.warn('GGA cover unavailable',e);}
+  if(!path){document.documentElement.style.removeProperty('--gga-hero-photo');document.documentElement.style.setProperty('--gga-default-cover-opacity','1');return;}
+  try{const url=await storeMod.getDownloadURL(storeMod.ref(storage,path));if(s.clubhouse?.coverPath===path){document.documentElement.style.setProperty('--gga-hero-photo',`url("${url}")`);document.documentElement.style.setProperty('--gga-default-cover-opacity','0');}}catch(e){console.warn('GGA cover unavailable',e);}
  }
  const ownerAllowed=()=>ownerReady&&auth.currentUser?.uid===currentUid;
  async function publish(){
@@ -191,6 +191,7 @@ if(!backendConfigured){
   finally{URL.revokeObjectURL(url);}
  }
  window.GGA_UPLOAD_PHOTO=(file,p)=>void uploadPhoto(file,p);
+ window.GGA_CHARACTER_UPDATED=async p=>{if(!auth.currentUser)return;try{const t=await auth.currentUser.getIdTokenResult();if(!t.claims.owner&&t.claims.playerId!==p.id)return;await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{fantasyCharacterId:p.fantasyCharacterId,updatedAt:fireMod.serverTimestamp()},{merge:true});}catch(e){gga.notify('Character selection did not sync: '+formatError(e));}};
  window.GGA_UPLOAD_BRANDING=async file=>{
   if(!ownerAllowed())return gga.notify('Matthew must sign in as owner to change the cover.');
   if(!file||!file.type.startsWith('image/')||file.size>12*1024*1024)return gga.notify('Choose a photo smaller than 12 MB.');
