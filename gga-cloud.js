@@ -12,7 +12,7 @@ const announce=(text,kind='info')=>{
  banner.textContent=text;banner.dataset.kind=kind;
 };
 if(!backendConfigured){
- announce('FOUNDER PREVIEW · This version saves changes on one device. Secure accounts and cross-device draft updates activate after Firebase is connected.','preview');
+ announce('FOUNDER PREVIEW · Secure member accounts and live syncing activate when Firebase is connected.','preview');
 }else{
  announce('CONNECTING · Initializing secure GGA accounts and shared clubhouse…','loading');
  try{
