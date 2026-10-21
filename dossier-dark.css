@@ -1,0 +1,115 @@
+/* GGA BLACK LABEL — darker professional athlete dashboard, October 2026 */
+:root{color-scheme:dark;--gga-ink:#f3f4f7;--gga-dim:#9296a8;--gga-panel:#171924;--gga-panel-raised:#1d202e;--gga-border:#343746;--gga-bg:#0a0b11;--gga-gold:#ffdb35;--gga-gold-strong:#ffe665;--gga-green:#96dfbe}
+body{background:#0b0c13!important;color:#f3f3fa!important}
+.hero{background:linear-gradient(112deg,#101119,#171924 74%,#1e202a)!important;border-bottom-color:#363747}
+.hero:after{background:linear-gradient(90deg,transparent,#ffe04f46,transparent)}
+.brand-emblem{color:#ffdb35!important;border-color:#efcf4b!important;background:#e5cd4d0d}
+.hero-title span,.kicker,.eyebrow,.gga-goldline{color:#ffda35!important}
+.top-tabs{background:#151722f5!important;border-color:#363948!important}
+.top-tabs button{color:#a2a4b5!important}.top-tabs button.active{background:#e9cf2b19!important;color:#ffe65e!important;border-color:#e9cf2b49!important}
+.panel,.stat,.gga-glass,.gga-stat-grid>div,.gga-result,.player-card,.forge-card,.match-card{background:linear-gradient(150deg,#1a1c28,#13151f)!important;border-color:#353849!important;box-shadow:0 8px 27px #0004}
+.panel-head{background:#20222e!important;border-color:#343644!important}
+.panel-head h3,.panel h3,.gga-glass h3{color:#f2f1fb!important}
+.gga-stat-grid>div{background:linear-gradient(130deg,#20212e,#171923)!important;border-color:#393b48!important}
+.gga-stat-grid strong{color:#ffdc38!important}
+.gga-promo{background:#14151f!important;border-color:#4c4a40!important}
+.gga-promo-content{background:linear-gradient(90deg,#13141efc,#13141ef4 65%,#13141eac)!important}
+.gga-promo-art{background-color:#12151d}
+.gga-strip{background:linear-gradient(100deg,#e4c325,#ffdf57 47%,#b79c24)!important;color:#11131b!important;border-color:#ffe261a3!important}
+.gga-cloud-state{background:#efdc3511!important;border-color:#e4cb3c2f!important;color:#d6d0a9!important}
+.gga-cloud-state:before{background:#ead54c!important}
+.gga-draft-hero{background:linear-gradient(125deg,#222431,#10121c)!important;border-color:#635b30!important}
+.gga-clock strong{color:#ffdf51!important}
+.btn-gold{background:linear-gradient(120deg,#e3c42b,#ffe95b,#dec02a)!important;color:#171821!important;border-color:#f6e26a!important}
+.btn-secondary{background:#212331!important;color:#e8eaf2!important;border-color:#555a6d!important}
+.btn{background-color:#252735;border-color:#4e5060;color:#f3f3f6}
+.btn-gold:hover:not(:disabled){color:#11131b!important}
+.badge,.gga-member-record{background:#e4c62a1a!important;border-color:#f1d64146!important;color:#ffe56b!important}
+.gga-history-cover{background:#11131c!important;border-color:#383c48!important}
+.gga-result h4{color:#ffdf4f}
+.gga-history-cover h3{color:#f3f4f8}
+#players .player-card{background:linear-gradient(140deg,#232532,#171924)!important;border-color:#373946!important}
+#players .player-card:before{background:linear-gradient(#ffe451,#af9a2a)!important}
+#players .player-card .avatar.lg{border-color:#f4d64065}
+#players .player-card .meta strong{color:#f5f5fa!important}
+#players .player-card.selected{border-color:#ffe14b!important;box-shadow:0 0 0 1px #ffe14b50,0 13px 36px #0007!important}
+#players .player-card:hover{border-color:#e9d44288!important}
+#players .section-top{margin-bottom:20px}
+#players .player-grid{margin-bottom:20px}
+#players #player-detail{background:#11131b!important;border:1px solid #303240!important;border-radius:17px;overflow:hidden;box-shadow:0 24px 70px #0007}
+#players #player-detail>.panel-pad{padding:0!important}
+.gga-dossier{background:#11131b;color:#f7f7fa;font-family:Inter,system-ui,-apple-system,sans-serif}
+.gga-dossier-hero{display:grid;grid-template-columns:1.05fr .95fr;min-height:365px;background:radial-gradient(ellipse 430px 300px at 73% 49%,#2b2e45a5,transparent),linear-gradient(110deg,#191b29,#12141f 60%,#1b1d2b);position:relative;border-bottom:1px solid #343647;overflow:hidden}
+.gga-dossier-hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(147deg,transparent 0,transparent 43px,#ffffff04 44px,transparent 46px);mix-blend-mode:screen}
+.gga-dossier-bio{z-index:2;padding:clamp(25px,4vw,44px);display:flex;flex-direction:column;justify-content:center;min-width:0}
+.gga-dossier-kicker{font-size:10px;letter-spacing:.18em;color:#c4c6d1;font-weight:850;text-transform:uppercase;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.gga-dossier-kicker i{height:5px;width:5px;display:inline-block;border-radius:100%;background:#ffda3f;box-shadow:0 0 9px #f9d531}
+.gga-dossier-bio h2{font-size:clamp(40px,5vw,66px);font-family:Inter,system-ui,sans-serif;font-weight:900;line-height:.94;letter-spacing:-.07em;margin:20px 0 14px;text-transform:uppercase;overflow-wrap:anywhere}
+.gga-dossier-bio h2 span{display:block;color:#ffe340}
+.gga-dossier-affiliation{font-size:13px;color:#acafc5;margin:0 0 23px;font-weight:600;letter-spacing:.03em}
+.gga-dossier-biogrid{display:flex;gap:22px;flex-wrap:wrap}
+.gga-dossier-biogrid>div{display:flex;flex-direction:column;gap:6px;min-width:70px}
+.gga-dossier-biogrid small{font-size:9px;color:#8d91a4;letter-spacing:.13em;font-weight:900}
+.gga-dossier-biogrid b{font-size:12px;color:#f1f1f5}
+.gga-dossier-link{margin-top:23px;font-size:12px}.gga-dossier-link a{color:#ffe04f;text-decoration:none;border-bottom:1px solid #f8dc5845;padding-bottom:3px}
+.gga-dossier-portrait{position:relative;min-height:350px;overflow:hidden;display:flex;align-items:flex-end;justify-content:center}
+.gga-dossier-light{position:absolute;inset:-20%;background:radial-gradient(ellipse at 55% 43%,#5657708c 0,transparent 57%)}
+.gga-dossier-photo{width:auto;height:102%;max-width:105%;object-fit:contain;object-position:bottom center;position:absolute;z-index:2;bottom:-1%;filter:drop-shadow(-18px 13px 22px #0007)}
+.gga-dossier-initials{font-size:clamp(110px,15vw,190px);font-weight:950;letter-spacing:-.12em;position:absolute;bottom:13%;color:#77798c55;z-index:2}
+.gga-dossier-watermark{font-size:clamp(210px,26vw,360px);font-weight:950;line-height:.8;color:#ffffff07;position:absolute;right:-6%;bottom:7%;z-index:1;font-style:italic}
+.gga-dossier-layout{display:grid;grid-template-columns:1.52fr 1fr;gap:15px;padding:18px}
+.gga-dossier-panel{background:#1a1c27;border:1px solid #303342;border-radius:13px;overflow:hidden;min-width:0}
+.gga-dossier-panelhead{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:17px 18px 14px;border-bottom:1px solid #303342}
+.gga-dossier-panelhead h3{font-size:15px;font-weight:800;letter-spacing:-.01em;margin:0!important;color:#f2f2f6!important}
+.gga-dossier-panelhead>span{font-size:9px;font-weight:850;letter-spacing:.13em;color:#858a9d;text-align:right}
+.gga-dossier-table-scroll{overflow-x:auto}
+.gga-dossier-table{width:100%;min-width:510px;border-collapse:collapse}
+.gga-dossier-table thead th{background:#222431!important;border-bottom:1px solid #343646!important;text-transform:uppercase;font-weight:850;color:#9398ad!important;font-size:9px;letter-spacing:.12em;padding:12px 13px}
+.gga-dossier-table tbody td{font-size:11px;color:#c5c8d7;padding:13px;border-bottom:1px solid #ffffff0d;vertical-align:middle}
+.gga-dossier-table tbody td b{font-size:11px;color:#f1f1f5;display:block}.gga-dossier-table tbody td small{font-size:9px;color:#8f92a4;display:block;margin-top:4px}
+.gga-dossier-table tbody tr:hover{background:#ffffff06}
+.gga-dossier-no{color:#81869b!important;font-weight:800}
+.gga-dossier-result{border-radius:5px;padding:5px 7px;display:inline-block;font-size:10px;font-weight:850}
+.gga-dossier-result.win{background:#173e33;color:#8de8b7}.gga-dossier-result.loss{background:#4a252b;color:#ff9ca5}.gga-dossier-result.halved{background:#494126;color:#f8d984}
+.gga-dossier-form{padding-bottom:24px}.gga-dossier-rate{padding:22px 20px 6px;display:flex;align-items:baseline;gap:9px}
+.gga-dossier-rate strong{font-size:clamp(39px,4vw,59px);line-height:1;font-weight:900;color:#ffdf33;letter-spacing:-.065em}
+.gga-dossier-rate span{color:#a3a6b7;font-size:11px}
+.gga-dossier-bars{padding:15px 20px 8px;display:flex;flex-direction:column;gap:17px}
+.gga-dossier-bar-label{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:11px}.gga-dossier-bar-label b{color:#e3e4ec}.gga-dossier-bar-label span{color:#989aac}
+.gga-dossier-track{height:6px;background:#323440;border-radius:10px;overflow:hidden}.gga-dossier-track i{background:linear-gradient(90deg,#a68e23,#ffe32d);display:block;height:100%;border-radius:10px}
+.gga-dossier-radar-area{padding:5px 20px 0;display:grid;place-items:center}.gga-dossier-radar{max-width:380px;width:100%;height:auto}.gga-dossier-radar text{font-size:8.5px;font-family:Inter,system-ui,sans-serif;fill:#c2c5d1;font-weight:800;letter-spacing:.055em}
+.gga-dossier-legend{font-size:10px;color:#85899b;padding:0 20px 19px;line-height:1.6;margin:0}
+.gga-dossier-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.gga-dossier-metric{padding:21px 17px;display:flex;flex-direction:column;gap:7px;min-height:106px;border-right:1px solid #303342;border-bottom:1px solid #303342}
+.gga-dossier-metric:nth-child(2n){border-right:0}.gga-dossier-metric:nth-last-child(-n+2){border-bottom:0}
+.gga-dossier-metric small{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#9096a7;font-weight:750}
+.gga-dossier-metric strong{font-size:clamp(25px,3vw,36px);font-weight:850;line-height:1;color:#ffe043;letter-spacing:-.055em}
+.gga-dossier-metric span{font-size:10px;color:#a4abba}
+.gga-dossier-trophies{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:19px}.gga-dossier-trophies>div{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px}.gga-dossier-trophies>div>span{font-size:40px;color:#e9c648;text-shadow:0 10px 22px #e2bd3d22}.gga-dossier-trophies b{font-size:10px;color:#dedfea}.gga-dossier-trophies small{font-size:9px;color:#8d91a4}
+.gga-dossier-personal-inner{padding:19px}.gga-dossier-character-label{font-size:10px;color:#9c9fb0;letter-spacing:.12em;font-weight:850;margin:0 0 12px}
+.gga-dossier-personal .pfile-controls{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.gga-dossier-personal .form-field{margin:13px 0}
+.gga-dossier-personal .hint{font-size:11px!important}
+#gga-dossier-character-slot .btn{margin-bottom:12px}
+.gga-dossier-personal .profile-character{max-width:100%}
+@media(max-width:980px){.gga-dossier-layout{grid-template-columns:1fr 1fr}.gga-dossier-appearances,.gga-dossier-analytics,.gga-dossier-achievements{grid-column:1/-1}.gga-dossier-hero{grid-template-columns:1fr .85fr}}
+@media(max-width:650px){
+ .gga-dossier-hero{grid-template-columns:1fr;min-height:unset}
+ .gga-dossier-portrait{min-height:285px;height:285px;order:-1}
+ .gga-dossier-photo{height:105%;bottom:-3%}
+ .gga-dossier-bio{padding:25px 22px 30px}
+ .gga-dossier-bio h2{font-size:clamp(38px,9.8vw,58px);margin:12px 0 13px}
+ .gga-dossier-affiliation{margin-bottom:18px;font-size:12px}
+ .gga-dossier-kicker{font-size:9px}
+ .gga-dossier-biogrid{gap:15px}
+ .gga-dossier-biogrid b{font-size:11px}
+ .gga-dossier-layout{display:flex;flex-direction:column;gap:12px;padding:12px}
+ .gga-dossier-panelhead{padding:14px}
+ .gga-dossier-panelhead h3{font-size:14px}
+ .gga-dossier-panelhead>span{font-size:8px}
+ .gga-dossier-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .gga-dossier-metric{min-height:98px;padding:17px 13px}
+ .gga-dossier-trophies{padding:15px;gap:8px}
+ .gga-dossier-trophies>div>span{font-size:34px}
+ #players #player-detail{border-radius:12px}
+}
