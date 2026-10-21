@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  function member(){return request.auth != null && request.auth.token.playerId is string;}
+  function owner(){return request.auth != null && request.auth.token.owner == true && request.auth.token.username == 'matthew.ydarraga';}
+  match /profile-photos/{playerId}/avatar.jpg {
+   allow read: if true;
+   allow write: if (owner() || (member() && request.auth.token.playerId == playerId))
+    && request.resource != null && request.resource.size < 5 * 1024 * 1024
+    && request.resource.contentType == 'image/jpeg';
+  }
+  match /branding/{fileName} {
+   allow read: if true;
+   allow write: if owner() && fileName.matches('cover\\.jpg|logo\\.png')
+    && request.resource.size < 5 * 1024 * 1024
+    && request.resource.contentType.matches('image/.*');
+  }
+ }
+}
