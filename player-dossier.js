@@ -57,6 +57,7 @@
    '<section class="gga-dossier-panel gga-dossier-personal"><div class="gga-dossier-panelhead"><h3>My Player Profile</h3><span>CUSTOMIZE</span></div><div class="gga-dossier-personal-inner"><p class="gga-dossier-character-label">YOUR GGA CHARACTER</p><div id="gga-dossier-character-slot"></div>'+account+'</div></section></div></div>';
   const host=document.querySelector('#player-detail');
   if(!host)return;host.innerHTML=markup;
+  document.querySelectorAll('#player-grid [data-profile]').forEach(btn=>{const selected=btn.dataset.profile===p.id;btn.classList.toggle('selected',selected);btn.setAttribute('aria-pressed',String(selected));});
   // Existing fantasy character card is rebuilt using the current game character system.
   const slot=host.querySelector('#gga-dossier-character-slot');
   if(slot){const current=state.players.find(x=>x.id===p.id);slot.innerHTML=window.GGA_CHARACTER_HTML?window.GGA_CHARACTER_HTML(current):'<button type="button" class="btn btn-secondary btn-tiny" id="view-forge">Explore the 50 fantasy characters →</button>';}
