@@ -105,3 +105,28 @@ tbody tr:hover{background:#ffffff09}tr:last-child td{border-bottom:0}
 }
 @media(min-width:621px){.gga-mobile-nav{display:none!important}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Connected preview status and founder artwork */
+.gga-cloud-state{padding:11px 15px;margin:-3px 0 18px;display:flex;align-items:center;gap:10px;border:1px solid #d0b57445;background:#d4b16c14;border-radius:10px;color:#eed29c;font-weight:680;font-size:11px;letter-spacing:.017em;line-height:1.55}
+.gga-cloud-state:before{content:'';width:8px;height:8px;display:inline-block;flex:none;border-radius:50%;background:#d4b06c;box-shadow:0 0 0 4px #ceaf7124}
+.gga-cloud-state[data-kind="live"]{background:#67cba719;color:#8ce7bf;border-color:#7ed5b94b}
+.gga-cloud-state[data-kind="live"]:before{background:#73d4a6;box-shadow:0 0 0 4px #73d4a626}
+.gga-cloud-state[data-kind="error"]{color:#fac5bb;background:#c95a5320;border-color:#dc81774f}
+.gga-cloud-state[data-kind="error"]:before{background:#ff8b80}
+.gga-promo-art{background-image:var(--gga-hero-photo,none);background-position:center 45%;background-size:cover}
+.gga-promo-art img{opacity:var(--gga-default-cover-opacity,1);transition:opacity .25s ease}
+.gga-owner-brand h3{font:29px Georgia,serif;letter-spacing:-.03em;margin:8px 0 18px}
+.gga-owner-brand .form-row{align-items:end}
+.gga-invite-output{padding:16px;margin:7px 0 15px;background:#265141;color:#d9f6e7;border-radius:10px;border:1px solid #72daa55e;line-height:1.65;overflow-wrap:anywhere;font-size:13px}
+.gga-action-pair{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
+.gga-signout{background:#ffffff0a;color:#b8c9d5;border:1px solid #bfd0d12d;padding:6px 9px;font-size:10px;margin-left:9px;border-radius:7px}
+.gga-signout:hover{color:#f3d5a4;border-color:#e5c28b62}
+.account-area{display:flex;align-items:center;gap:5px}
+.gga-mobile-nav{display:none}
+html[data-gga-theme="forest"] body{background:radial-gradient(ellipse 950px 650px at 82% 2%,#264c3663,transparent 74%),linear-gradient(160deg,#081b19,#0d2725 48%,#071613)}
+html[data-gga-theme="royal"] body{background:radial-gradient(ellipse 900px 500px at 83% -4%,#2d3e8466,transparent 78%),linear-gradient(160deg,#0a1333,#132750 48%,#08142b)}
+html[data-gga-theme="carbon"] body{background:radial-gradient(ellipse 950px 650px at 84% 2%,#5e677046,transparent 74%),linear-gradient(160deg,#0c1014,#181f24 48%,#0e1319)}
+html[data-gga-theme="forest"] .hero{background:linear-gradient(118deg,#0a201a,#143a2f)}
+html[data-gga-theme="royal"] .hero{background:linear-gradient(118deg,#0c1937,#1e365e)}
+html[data-gga-theme="carbon"] .hero{background:linear-gradient(118deg,#0d151c,#2c3540)}
+@media(max-width:620px){.gga-cloud-state{font-size:10px;margin-top:0}.gga-signout{padding:6px;font-size:9px}.account-area .account-btn{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gga-mobile-nav{display:flex}}
