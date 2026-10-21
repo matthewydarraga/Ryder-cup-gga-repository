@@ -177,3 +177,33 @@ html[data-gga-theme="carbon"] .hero{background:linear-gradient(118deg,#0d151c,#2
  .gga-promo h2{font-size:48px;margin-top:12px}
  .gga-promo-meta{margin-top:16px}
 }
+
+/* Final visual QA fixes: never inherit the archival cream theme on midnight cards */
+.panel-head{background:#142d42!important;border-bottom:1px solid #d8be8c30!important}
+.panel-head h3{color:#f3e1be!important}
+.panel-head .badge{background:#80602c40!important;color:#ead09e!important;border-color:#d9b97766!important}
+#draft .gga-draft-teams .panel{background:linear-gradient(180deg,#15324a,#0a2034)!important}
+#draft .gga-draft-teams .panel-head{min-height:72px;padding:15px!important}
+#draft .gga-draft-teams .panel-head h3{font-size:15px;line-height:1.3!important}
+#draft .gga-pick{color:#d6e4ed;border-bottom-color:#b4c5ce25}
+/* Profiles are sports cards, not tiny contact chips */
+#players>.accounts-note{display:none!important}
+#players .section-top{margin-bottom:21px}
+#players .player-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+#players .player-card{display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:14px;text-align:left;min-height:138px;padding:15px 13px;position:relative;border-color:#bca36e36;background:linear-gradient(128deg,#173449,#0d2235);overflow:hidden}
+#players .player-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(#f3d496,#987541);opacity:.8}
+#players .player-card .avatar.lg{display:block;flex:0 0 83px;width:83px;height:104px;border-radius:10px;border:1px solid #d6b47780;background:#223b50}
+#players .player-card .avatar.lg img{height:100%;width:100%;object-fit:cover;object-position:center 15%;display:block}
+#players .player-card .meta{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:5px;min-width:0}
+#players .player-card .meta strong{font-size:17px;color:#f4e8d5;line-height:1.12}
+#players .player-card .meta small{font-size:10px;line-height:1.55;color:#9eb4c6}
+#players .player-card .gga-member-record{font-size:10px;white-space:normal;margin-top:4px}
+@media(min-width:681px) and (max-width:1040px){#players .player-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){
+ #players .player-grid{grid-template-columns:1fr;gap:11px}
+ #players .player-card{min-height:132px;padding:13px}
+ #players .player-card .avatar.lg{flex:0 0 93px;width:93px;height:108px}
+ #players .player-card .meta strong{font-size:18px}
+ #players .player-card .meta small{font-size:11px}
+ #players .player-card .gga-member-record{font-size:10px}
+}
