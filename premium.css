@@ -130,3 +130,20 @@ html[data-gga-theme="forest"] .hero{background:linear-gradient(118deg,#0a201a,#1
 html[data-gga-theme="royal"] .hero{background:linear-gradient(118deg,#0c1937,#1e365e)}
 html[data-gga-theme="carbon"] .hero{background:linear-gradient(118deg,#0d151c,#2c3540)}
 @media(max-width:620px){.gga-cloud-state{font-size:10px;margin-top:0}.gga-signout{padding:6px;font-size:9px}.account-area .account-btn{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gga-mobile-nav{display:flex}}
+
+/* Composition: keep all golfers in the uploaded portrait without clipping heads */
+.gga-promo-art img{object-position:center 68%}
+.gga-history-cover{height:430px;background:linear-gradient(115deg,#10273c,#071725)}
+.gga-history-cover img{position:absolute;top:0;left:0;width:58%;height:100%;object-fit:cover;object-position:center 68%;filter:brightness(.83) contrast(1.05)}
+.gga-history-cover:before{background:linear-gradient(90deg,transparent 38%,#071725 60%,#071725 100%);z-index:1}
+.gga-history-cover>div{left:61%;right:26px;top:50%;bottom:auto;transform:translateY(-50%);z-index:2}
+.gga-history-cover h3{font-size:clamp(39px,4.4vw,62px);letter-spacing:-.07em;line-height:1.08}
+.gga-history-cover p{color:#afc2d3;line-height:1.8;max-width:330px}
+@media(max-width:620px){
+ .gga-promo-art img{object-position:center 68%}
+ .gga-history-cover{height:375px}
+ .gga-history-cover img{width:100%;height:100%;object-position:center 65%;filter:brightness(.56)}
+ .gga-history-cover:before{background:linear-gradient(0deg,#071725ed,transparent 70%)}
+ .gga-history-cover>div{left:18px;right:15px;top:auto;bottom:15px;transform:none}
+ .gga-history-cover h3{font-size:38px}
+}
