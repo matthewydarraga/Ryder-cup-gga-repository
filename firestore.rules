@@ -16,7 +16,11 @@ service cloud.firestore {
   match /profiles/{playerId} {
    allow read: if true;
    allow create,update: if isOwner() || (isSelf(playerId)
-    && request.resource.data.keys().hasOnly(['photoPath','fantasyCharacterId','updatedAt'])
+    && request.resource.data.keys().hasOnly(['photoPath','fantasyCharacterId','strengthOrder','updatedAt'])
+    && (!request.resource.data.keys().hasAny(['strengthOrder']) ||
+     (request.resource.data.strengthOrder is list && request.resource.data.strengthOrder.size() == 4
+      && request.resource.data.strengthOrder.toSet().size() == 4
+      && request.resource.data.strengthOrder.hasOnly(['Driving','Approach','Chipping','Putting'])))
     && (!request.resource.data.keys().hasAny(['photoPath']) || (request.resource.data.photoPath is string
     && request.resource.data.photoPath.matches('profile-photos/'+playerId+'/avatar\\.jpg')))
     && request.resource.data.updatedAt is timestamp);

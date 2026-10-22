@@ -354,4 +354,4 @@ $('#player-detail').addEventListener('change',e=>{if(e.target.id==='photo-file')
 window.GGA={getState:()=>state,getUser:currentUser,isOwner:isOrganizer,save,render,notify,showTab,player,statsFor,ranks,avatar,fmt,openLogin,logout,exportFile,pinHash,AUTH_STORE,setSignedIn:(username)=>{signedIn=username||'';selectedPlayer=currentUser()?.id||'';try{if(signedIn)sessionStorage.setItem(ACTIVE_ACCOUNT,signedIn);else sessionStorage.removeItem(ACTIVE_ACCOUNT)}catch{};render();},closeLogin};
 render();save();
 })();
-</script><script src="./ghin-snapshot.js?v=20261021a"></script><script src="./gga-upgrade.js?v=20271021d"></script><script src="./player-dossier.js?v=20261021-legends"></script><script type="module" src="./gga-cloud.js?v=20271021d"></script></body></html>
+</script><script src="./ghin-snapshot.js?v=20261021a"></script><script src="./gga-upgrade.js?v=20271021d"></script><script src="./player-strengths.js?v=20261022a"></script><script src="./player-dossier.js?v=20261022-strengths"></script><script type="module" src="./gga-cloud.js?v=20261022-strengths"></script></body></html>

@@ -86,6 +86,7 @@ if(!backendConfigured){
    const record=change.doc.data(),player=s.players.find(p=>p.id===change.doc.id);profileCache.set(change.doc.id,record);
    if(!player)continue;
    if(record.fantasyCharacterId)player.fantasyCharacterId=record.fantasyCharacterId;
+   if(window.GGA_STRENGTHS?.valid(record.strengthOrder))player.strengthOrder=record.strengthOrder;
    if(record.photoPath){
     try{const url=await storeMod.getDownloadURL(storeMod.ref(storage,record.photoPath));if(s.players.find(p=>p.id===change.doc.id))s.players.find(p=>p.id===change.doc.id).customPhoto=url;}
     catch(e){console.warn('Profile photo unavailable',e);}
@@ -190,6 +191,12 @@ if(!backendConfigured){
   }catch(e){gga.notify('Photo upload failed: '+formatError(e));}
   finally{URL.revokeObjectURL(url);}
  }
+ window.GGA_SAVE_STRENGTHS=async(p,order)=>{
+  if(!auth.currentUser||!window.GGA_STRENGTHS.valid(order))throw Error('Sign in and rank each skill once.');
+  const token=await auth.currentUser.getIdTokenResult();
+  if(token.claims.playerId!==p.id)throw Error('Only this player can set their strengths.');
+  await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{strengthOrder:order,updatedAt:fireMod.serverTimestamp()},{merge:true});
+ };
  window.GGA_UPLOAD_PHOTO=(file,p)=>void uploadPhoto(file,p);
  window.GGA_CHARACTER_UPDATED=async p=>{if(!auth.currentUser)return;try{const t=await auth.currentUser.getIdTokenResult();if(!t.claims.owner&&t.claims.playerId!==p.id)return;await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{fantasyCharacterId:p.fantasyCharacterId,updatedAt:fireMod.serverTimestamp()},{merge:true});}catch(e){gga.notify('Character selection did not sync: '+formatError(e));}};
  window.GGA_UPLOAD_BRANDING=async file=>{
