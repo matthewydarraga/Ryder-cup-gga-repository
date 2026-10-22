@@ -50,7 +50,7 @@ if(!backendConfigured){
     if(data.season2026){if(season2026)Object.assign(season2026,data.season2026);else s.seasons.push(data.season2026);}
     if(data.season2027){if(season2027)Object.assign(season2027,{...data.season2027,rounds:season2027.rounds});else s.seasons.push(data.season2027);}
     if(data.clubhouse)s.clubhouse={...s.clubhouse,...data.clubhouse};
-    if(data.draft2027){s.draft2027.phase=data.draft2027.phase;s.draft2027.picks.splice(0,s.draft2027.picks.length,...(data.draft2027.picks||[]));}
+    if(data.draft2027){Object.assign(s.draft2027,data.draft2027);s.draft2027.picks=[...(data.draft2027.picks||[])];}
     if(data.handicapWeight!==undefined)s.handicapWeight=data.handicapWeight;
     gga.render();gga.save();
     loadCover();

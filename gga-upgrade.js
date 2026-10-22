@@ -44,39 +44,7 @@ function summary(){
    return '<article class="gga-result"><small>'+esc(a)+' vs '+esc(b)+'</small><h4>'+esc(winner)+(m.manualWinner&&m.manualWinner!=='handicap'?' wins':'')+'</h4><p>'+esc(m.manualMargin||'')+'</p><p>'+esc(m.manualNote||'')+'</p></article>';
  }).join('')+'</div>').join('');
 }
-function populateDraft(){
- const s=cup2027(),picks=draft.picks.filter(p=>resolvePlayer(p.playerId)).slice(0,12);draft.picks=picks;
- const n=picks.length,side=baseOrder[n]||null;
- const phase=n>=12?'complete':draft.phase||'pre';
- const isLive=phase==='live'&&n<12;
- $('#gga-draft-badge').textContent=phase==='live'?'DRAFT LIVE':phase==='complete'?'DRAFT COMPLETE':'PRE-DRAFT';
- $('#gga-draft-badge').classList.toggle('live',phase==='live');
- $('#gga-draft-a-label').textContent=$('#gga-draft-a-name').textContent=teamName('A');
- $('#gga-draft-b-label').textContent=$('#gga-draft-b-name').textContent=teamName('B');
- $('#gga-on-clock').textContent=n>=12?'The teams are set':isLive?teamName(side):'Awaiting the first pick';
- $('#gga-pick-number').textContent=n>=12?'12 selections complete':'Pick '+(n+1)+' / 12';
- $('#gga-draft-status-home').textContent=n>=12?'The draft has concluded. View both six-golfer teams and the alternate.':isLive?teamName(side)+' is on the clock for pick '+(n+1)+'.':'The draft board is ready. Waiting for the owner to open the 2027 draft.';
- for(const letter of ['A','B']){
-   const sidePicks=picks.map((p,i)=>({...p,index:i})).filter(p=>p.team===letter);
-   $('#gga-draft-'+letter.toLowerCase()+'-count').textContent=sidePicks.length+' / 6';
-   $('#gga-draft-'+letter.toLowerCase()+'-picks').innerHTML=Array.from({length:6},(_,i)=>{
-     const p=sidePicks[i],golfer=p?resolvePlayer(p.playerId):null;
-     return '<div class="gga-pick"><span class="gga-slot-number">'+(i+1)+'</span>'+(golfer?core.avatar(golfer,'md')+'<div><strong>'+esc(golfer.name)+'</strong><br><small>Pick #'+(p.index+1)+'</small></div>':'<small>Available slot</small>')+'</div>';
-   }).join('');
- }
- const pool=state.players.filter(p=>!picks.some(x=>x.playerId===p.id));
- $('#gga-draft-pool').innerHTML=pool.map(p=>'<div class="gga-pick">'+core.avatar(p,'md')+'<div><strong>'+esc(p.name)+'</strong><br><small>'+(p.handicap===null?'HCP pending':'HCP '+Number(p.handicap).toFixed(1))+'</small></div></div>').join('')||'<p class="quiet">The draft pool is empty.</p>';
- $('#gga-draft-history').innerHTML=baseOrder.map((side,i)=>'<span class="'+(i<n?'done':'')+'">#'+(i+1)+' · '+esc(teamName(side))+(i<n?' · '+esc(nameOf(picks[i].playerId)):'')+'</span>').join('');
- const pickSelect=$('#gga-owner-pick-select');
- const old=pickSelect.value;
- pickSelect.innerHTML=pool.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');
- if(pool.some(p=>p.id===old))pickSelect.value=old;
- $('#gga-make-pick').disabled=n>=12||!pool.length;
- $('#gga-undo-pick').disabled=n===0;
- $('#gga-owner-draft-state').value=draft.phase||'pre';
- $('#gga-next-location').textContent='Location · '+esc(s?.location||'To be announced');
- $('#gga-next-date').textContent='Date · '+(s?.date?new Date(s.date+'T12:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}):'To be announced');
-}
+function populateDraft(){window.GGA_DRAFT.render();}
 function ownerEditor(){
  $('#gga-owner-hero').value=state.clubhouse.hero??placeholder.hero;
  $('#gga-owner-announcement').value=state.clubhouse.announcement??placeholder.announcement;
@@ -109,17 +77,9 @@ window.GGA_UPGRADE_RENDER=renderUpgrade;
 document.addEventListener('click',event=>{
  const nav=event.target.closest('[data-open-tab]');if(nav){core.showTab(nav.dataset.openTab);if(nav.dataset.openTab==='owner')ownerEditor();return;}
  if(!core.isOwner())return;
- if(event.target.closest('#gga-make-pick')){
-   if(draft.picks.length>=12)return core.notify('All twelve selections are complete.');
-   const pid=$('#gga-owner-pick-select').value;if(!pid||hasPick(pid))return core.notify('Choose an available golfer.');
-   draft.picks.push({playerId:pid,team:baseOrder[draft.picks.length]});if(draft.picks.length===12)draft.phase='complete';core.save();core.render();core.notify('Draft pick recorded.');return;
- }
- if(event.target.closest('#gga-undo-pick')){draft.picks.pop();if(draft.phase==='complete')draft.phase='live';core.save();core.render();return;}
- if(event.target.closest('#gga-reset-draft')){if(!confirm('Reset all 2027 draft picks?'))return;draft.picks=[];draft.phase='pre';core.save();core.render();return;}
  if(event.target.closest('#gga-save-home')){state.clubhouse.hero=$('#gga-owner-hero').value.trim();state.clubhouse.announcement=$('#gga-owner-announcement').value.trim();state.clubhouse.announcementLabel=$('#gga-owner-announcement-label').value.trim();state.clubhouse.headline=$('#gga-owner-headline')?.value.trim()||'The rivalry never rests.';state.clubhouse.theme=$('#gga-owner-theme')?.value||'midnight';core.save();core.render();core.notify('Clubhouse design and content saved.');return;}
  const reset=event.target.closest('[data-reset-pin]');if(reset){if(!confirm('Reset this local PIN? Anyone accessing a fresh device can claim the account.'))return;let pins={};try{pins=JSON.parse(localStorage.getItem(core.AUTH_STORE))||{}}catch{}delete pins[reset.dataset.resetPin];localStorage.setItem(core.AUTH_STORE,JSON.stringify(pins));core.notify('Local PIN reset. Reload to sync the login dialog.');ownerEditor();}
 });
-$('#gga-owner-draft-state').addEventListener('change',event=>{if(!core.isOwner())return;draft.phase=event.target.value;core.save();core.render()});
 $('#gga-owner-history').addEventListener('change',e=>{if(!core.isOwner())return;const el=e.target,ri=el.dataset.histRound??el.dataset.histNote,mi=el.dataset.histMatch??el.dataset.histIndex;if(ri===undefined||mi===undefined)return;const m=matches2026()?.rounds?.[+ri]?.matches?.[+mi];if(!m)return;if(el.dataset.histRound!==undefined)m.manualWinner=el.value||null;else m.manualNote=el.value.trim();core.save();core.render();});
 $('#tabs').addEventListener('click',e=>{const el=e.target.closest('[data-tab]');if(el?.dataset.tab==='owner'&&core.isOwner())ownerEditor()});
 /* Mobile home-screen navigation, account sign-out, and owner art direction. */
