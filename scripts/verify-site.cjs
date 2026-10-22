@@ -3,10 +3,10 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const files=['index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-group.webp','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules','functions/index.js'];
+const files=['draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-group.webp','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules','functions/index.js'];
 for(const path of files)assert.ok(fs.existsSync(path),'Required file missing: '+path);
 const html=fs.readFileSync('index.html','utf8');
-for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','gga-owner-draft-state','gga-invite-code']){
+for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','draft-order-summary','gga-invite-code']){
  assert.ok(html.includes('id="'+id+'"'),'Required interface element missing: '+id);
 }
 for(const name of ['Matthew Ydarraga','Michael Rodriguez','Jake Norris','Brandon Durman','Will Parker','Ryan Higgins','Jordan McNeely','Reid Mixon','Zach Cousar','Jack Abraham','Peyton Braswell','Nate Cox','Kody Russey'])
@@ -19,7 +19,7 @@ for(const [i,m] of matches.entries()){
  new vm.Script(source,{filename:'index-inline-'+i+'.js'});inline++;
 }
 assert.ok(inline>=1,'No inline app script validated');
-for(const path of ['gga-upgrade.js','functions/index.js','sw.js'])
+for(const path of ['draft-board.js','player-strengths.js','gga-upgrade.js','functions/index.js','sw.js'])
  new vm.Script(fs.readFileSync(path,'utf8'),{filename:path});
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 new AsyncFunction(fs.readFileSync('gga-cloud.js','utf8'));
