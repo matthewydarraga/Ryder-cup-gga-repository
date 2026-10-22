@@ -16,6 +16,10 @@
   return '<svg viewBox="0 0 320 300" style="display:block;width:100%;max-width:380px;margin:auto" role="img" aria-label="Estimated golf strengths: '+skills.map((s,i)=>s+' '+values[i]+' out of 100').join(',')+'">'+[20,40,60,80,100].map(r=>'<polygon points="'+polygon(r)+'" fill="none" stroke="#687187" stroke-opacity=".4"/><text x="164" y="'+(150-r)+'" fill="#9ba6bb" font-size="9">'+r+'</text>').join('')+skills.map((_,i)=>'<line x1="160" y1="150" x2="'+point(i,100)[0]+'" y2="'+point(i,100)[1]+'" stroke="#687187" stroke-opacity=".4"/>').join('')+'<polygon points="'+values.map((n,i)=>point(i,n).join(',')).join(' ')+'" fill="#ffdb32" fill-opacity=".2" stroke="#ffdb32" stroke-width="3"/>'+[['Driving',160,25],['Approach',275,150],['Chipping',160,280],['Putting',45,150]].map(([s,x,y],i)=>'<text x="'+x+'" y="'+y+'" text-anchor="middle" fill="#edf0f6" font-size="12">'+s+'<tspan x="'+x+'" dy="17" fill="#ffdb32">'+values[i]+'</tspan></text>').join('')+'</svg>';
  }
  window.GGA_STRENGTHS={valid,ratings};
+ window.GGA_STRENGTH_SUMMARY=function(p){
+  const values=ratings(p.handicap,p.strengthOrder);
+  return '<h3>Game strengths</h3>'+(values?chart(values)+'<p class="hint">Strongest → developing: '+p.strengthOrder.join(' → ')+'</p><p class="hint">HCP-weighted estimates based on this player’s own ranking, not measured skill statistics.</p>':'<p class="hint">'+(valid(p.strengthOrder)?'Handicap Index needed to calculate this player’s spider chart.':'Awaiting this player’s strength ranking. They can rank driving, approach, chipping and putting in their profile.')+'</p>');
+ };
  window.GGA_STRENGTH_PANEL=function(p){
   const own=window.GGA.getUser()?.id===p.id;
   const ranked=valid(p.strengthOrder),order=ranked?p.strengthOrder:skills;
