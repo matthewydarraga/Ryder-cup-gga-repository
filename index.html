@@ -229,6 +229,7 @@ const PLAYER_CATALOG=[
 ['Nate Cox','nate.cox','nate-cox/2830','2018/8/7/Cox_Nate_2018.jpg','Quarterback · #13'],
 ['Kody Russey','kody.russey','kody-russey/6289','2020/7/31/Russey_Kody.jpg','Offensive Line · #65']
 ].map(([name,username,football,image,position])=>({name,username,football:football?`https://latechsports.com/sports/football/roster/${football}`:null,photo:image?`https://images.sidearmdev.com/crop?height=270&type=webp&url=${encodeURIComponent('https://dxbhsrqyrr690.cloudfront.net/sidearm.nextgen.sites/latechsports.com/images/'+image)}&width=180`:null,photoFallback:image?'https://dxbhsrqyrr690.cloudfront.net/sidearm.nextgen.sites/latechsports.com/images/'+image:null,position}));
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='brandon.durman'),{photo:'./assets/brandon-green-jacket.webp',photoFallback:'./assets/brandon-green-jacket.webp'});
 let state;try{state=JSON.parse(localStorage.getItem(STORE));if(!state?.players||!state?.seasons)throw Error('No save')}catch{state=initial()};
 const normalizeName=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 function mergeCatalog(){
@@ -238,6 +239,7 @@ function mergeCatalog(){
   let p=state.players.find(p=>normalizeName(p.name)===normalizeName(cat.name)||p.username===cat.username);
   if(!p){const placeholder=state.players.find(p=>/^Golfer \d+$/i.test(p.name)&&!kept.includes(p));p=placeholder||{id:'player-'+cat.username.replace('.','-'),handicap:null};if(!state.players.includes(p))state.players.push(p);}
   p.name=p.name||cat.name;p.username=cat.username;p.football=cat.football;p.officialPhoto=cat.photo;p.officialPhotoFallback=cat.photoFallback;p.position=cat.position;
+  if(cat.username==='brandon.durman'&&p.photoRevision!=='green-jacket-20261022'){p.previousCustomPhoto=p.customPhoto||null;p.customPhoto=null;p.photoRevision='green-jacket-20261022';}
   if(p.handicap===undefined)p.handicap=null;if(p.handicapChecked===undefined)p.handicapChecked=null;if(p.ghinNumber===undefined)p.ghinNumber='';if(p.fantasyCharacterId===undefined)p.fantasyCharacterId=null;
   if(p.fantasyCharacterId&&!charById(p.fantasyCharacterId))p.fantasyCharacterId=null;
   kept.push(p);
