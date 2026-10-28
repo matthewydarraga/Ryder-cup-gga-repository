@@ -38,6 +38,7 @@ if(!backendConfigured){
     season2027:future?{year:2027,location:future.location,date:future.date,teams:future.teams,roster:future.roster}:null,
     clubhouse:{...s.clubhouse,coverPath:s.clubhouse?.coverPath||null},
     draft2027:s.draft2027||{phase:'pre',picks:[]},
+    liveCup:s.liveCup||{year:2027,rounds:[]},
     handicapWeight:s.handicapWeight||70
    };
  }
@@ -51,6 +52,7 @@ if(!backendConfigured){
     if(data.season2027){if(season2027)Object.assign(season2027,{...data.season2027,rounds:season2027.rounds});else s.seasons.push(data.season2027);}
     if(data.clubhouse)s.clubhouse={...s.clubhouse,...data.clubhouse};
     if(data.draft2027){Object.assign(s.draft2027,data.draft2027);s.draft2027.picks=[...(data.draft2027.picks||[])];}
+    if(data.liveCup)s.liveCup=data.liveCup;
     if(data.handicapWeight!==undefined)s.handicapWeight=data.handicapWeight;
     gga.render();gga.save();
     loadCover();
@@ -68,7 +70,7 @@ if(!backendConfigured){
    const doc=serialize(),year2027=s.seasons.find(x=>x.year===2027);
    await fireMod.setDoc(publicRef,doc);
    if(year2027)await fireMod.setDoc(privateRef,{year:2027,rounds:year2027.rounds||[],updatedAt:fireMod.serverTimestamp()});
-   announce('LIVE CLUBHOUSE · 2027 draft and player updates sync across signed-in devices. 2027 match scoring is private to Matthew.','live');
+   announce('LIVE CLUBHOUSE · Draft, profiles and Live Scoring are shared. Matthew controls match results.','live');
   }catch(e){announce('SYNC ERROR · '+formatError(e),'error');}
  }
  window.GGA_AFTER_SAVE=()=>{
