@@ -21,7 +21,10 @@ else try{
  function render(){const prev=suppress;suppress=true;try{gga.render();gga.save();}finally{suppress=prev;}}
  function authorize(){window.GGA_BACKEND_AUTHORIZED=!!ownerAllowed();}
  function stop(){clearTimeout(timer);stops.forEach(f=>f());stops=[];member=null;ready=false;dirty=false;revision=null;blocked=false;profiles.clear();authorize();gga.setSignedIn('');}
- function fail(e){blocked=true;authorize();clearTimeout(timer);announce('SYNC STOPPED · '+errorText(e)+' · Export a backup, then reload to receive the server copy.','error');gga.render();}
+ function fail(e){
+  blocked=true;authorize();clearTimeout(timer);announce('SYNC STOPPED · '+errorText(e)+' · Export a backup, then reload to receive the server copy.','error');
+  const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-tiny';button.textContent='Download local backup';button.addEventListener('click',()=>gga.exportFile());$('#gga-cloud-state').append(button);gga.render();
+ }
  function content(){
   const future=s.seasons.find(x=>x.year===2027);
   return JSON.parse(JSON.stringify({schemaVersion:4,

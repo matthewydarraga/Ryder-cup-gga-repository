@@ -1,8 +1,6 @@
 name: Spark architecture checks
 on:
   pull_request:
-  push:
-    branches: [codex/spark-only-accounts]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,3 +19,20 @@ jobs:
       - run: npm install --ignore-scripts --no-package-lock
       - run: npm test
       - run: npm run test:rules
+      - name: Render existing clubhouse and history in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/gga-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..20}; do
+            curl -fsS http://127.0.0.1:8765/ >/dev/null && break || sleep 1
+          done
+          for page in home history players draft rankings; do
+            google-chrome --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=5000 --dump-dom "http://127.0.0.1:8765/?tab=$page" > "/tmp/gga-$page.html" 2>/tmp/gga-chrome.log
+            grep -q 'data-profile="player-matthew-ydarraga"' "/tmp/gga-$page.html"
+            grep -q 'data-profile="player-reid-mixon"' "/tmp/gga-$page.html"
+            grep -q 'id="gga-home-stats"><div>' "/tmp/gga-$page.html"
+            grep -q 'Matthew and Nate defeated Reid and Michael' "/tmp/gga-$page.html"
+          done

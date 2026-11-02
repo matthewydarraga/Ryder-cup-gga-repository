@@ -3,7 +3,7 @@ const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/st
 const tick=()=>new Promise(r=>setImmediate(r));
 async function harness(){
  const nodes=new Map(),events={},listeners=new Map(),timers=[];
- const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,dataset:{},addEventListener:(t,f)=>events[id+':'+t]=f,prepend(){}});return nodes.get(id);};
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,dataset:{},addEventListener:(t,f)=>events[id+':'+t]=f,prepend(){},append(){}});return nodes.get(id);};
  const state={players:[{id:'player-matthew-ydarraga',username:'matthew.ydarraga',name:'Matthew'}],seasons:[{year:2026,rounds:[]},{year:2027,location:'LA',date:'',teams:{},roster:{},rounds:[]}],clubhouse:{hero:'Initial'},draft2027:{phase:'pre',picks:[]},handicapWeight:70};
  let signed='',writes=0,txFailure=null,current=null,authCallback;
  const auth={currentUser:null},snapshot=(d,meta={})=>({exists:()=>!!d,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false,...meta}});
