@@ -1,7 +1,7 @@
 // Adapter integration with deterministic SDK doubles. Does not prove deployed security.
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 const tick=()=>new Promise(r=>setImmediate(r));
-async function harness(){
+async function harness(pending=false){
  const nodes=new Map(),events={},listeners=new Map(),timers=[];
  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,dataset:{},addEventListener:(t,f)=>events[id+':'+t]=f,prepend(){},append(){}});return nodes.get(id);};
  const state={players:[{id:'player-matthew-ydarraga',username:'matthew.ydarraga',name:'Matthew'}],seasons:[{year:2026,rounds:[]},{year:2027,location:'LA',date:'',teams:{},roster:{},rounds:[]}],clubhouse:{hero:'Initial'},draft2027:{phase:'pre',picks:[]},handicapWeight:70};
@@ -10,7 +10,7 @@ async function harness(){
  const membership={active:true,username:'matthew.ydarraga',playerId:'player-matthew-ydarraga',role:'owner'};
  let shared=null,priv=null;
  const fire={getFirestore:()=>({}),doc:(_,...p)=>p.join('/'),collection:(_,p)=>p,serverTimestamp:()=>123,
-  getDocFromServer:async ref=>snapshot(ref.startsWith('members/')?membership:priv),
+  getDocFromServer:async ref=>snapshot(ref.startsWith('members/')?(pending?null:membership):priv),
   onSnapshot:(ref,...args)=>{const cb=args.find(x=>typeof x==='function');listeners.set(ref,cb);return ()=>listeners.delete(ref);},
   runTransaction:async(_,fn)=>{if(txFailure)throw Error(txFailure);const staged=[];await fn({get:async()=>snapshot(shared),set:(ref,d)=>staged.push([ref,d])});for(const [r,d]of staged){if(r==='public/clubhouse')shared=d;else priv=d;writes++;}},
   setDoc:async()=>{writes++;}
@@ -42,5 +42,6 @@ async function harness(){
  const failed=await harness();await failed.login();await failed.emit();failed.setFailure('permission-denied');failed.events.click({target});await tick();await tick();assert.equal(failed.writes,0);assert.equal(failed.ctx.window.GGA_BACKEND_AUTHORIZED,false);
  const revoked=await harness();await revoked.login();await revoked.emit();revoked.listeners.get('members/owner')(revoked.snapshot({...revoked.membership,active:false}));assert.equal(revoked.signed,'');assert.equal(revoked.ctx.window.GGA_BACKEND_AUTHORIZED,false);assert.equal(revoked.listeners.size,0);
  const member=await harness();member.membership.role='player';await member.login();await member.emit();assert.equal(member.ctx.window.GGA_BACKEND_AUTHORIZED,false);member.state.clubhouse.hero='Forged';member.ctx.window.GGA.save();await member.flush();assert.equal(member.writes,0);
- console.log('PASS: explicit first publish, atomic revisions, no snapshot echo, stale owner conflict, failed writes, revocation, member write gating');
+ const pending=await harness(true);await pending.login();assert.equal(pending.signed,'');assert.equal(pending.ctx.window.GGA_BACKEND_AUTHORIZED,false);assert.equal(pending.listeners.size,0);assert(pending.node('#login-mode-note').textContent.includes('Awaiting Matthew'));assert.equal(pending.writes,0);
+ console.log('PASS: explicit first publish, atomic revisions, no snapshot echo, stale owner conflict, failed writes, revocation, member write gating, pending signup has no access');
 })().catch(e=>{console.error(e);process.exitCode=1;});

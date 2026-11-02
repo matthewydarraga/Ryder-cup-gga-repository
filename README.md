@@ -15,9 +15,12 @@ mapping. Do not enable a billing account to complete these steps.
 
 ## Accounts and permissions
 
-Matthew provisions 13 Firebase Auth accounts and immutable `members/{uid}` mappings
-in the Firebase console, including his own owner mapping. The browser cannot claim
-accounts, create membership records, grant roles or reset another player's password.
+Players can register their own Firebase email/password account using Create account.
+Matthew approves each account by creating its `members/{uid}` roster mapping in the
+Firebase console, including his own owner mapping. Pending users see their UID to send
+privately to Matthew, then sign in again after approval. Registration alone grants no
+roster or owner access. The browser cannot create membership records, grant roles or
+reset another player's password.
 Short PINs remain an explicitly local device preview only when Firebase is unconfigured;
 they never authenticate Firebase. Configured mode fails closed if setup or sign-in fails.
 

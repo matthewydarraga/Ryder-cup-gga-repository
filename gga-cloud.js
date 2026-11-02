@@ -73,7 +73,16 @@ else try{
   if(dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
  };
- function loginMode(){$('#login-mode-note').textContent='Use the email and password Matthew provisioned. Player selection does not grant access.';$('#login-submit').textContent='Sign in';}
+ function loginMode(){$('#login-mode-note').textContent='Sign in or create your own account. Matthew approves your roster profile; choosing a player never grants access.';$('#login-submit').textContent='Sign in';}
+ const signup=document.createElement('button');signup.type='button';signup.id='gga-create-account';signup.className='btn btn-secondary';signup.textContent='Create account';$('#login-form').append(signup);
+ signup.addEventListener('click',async()=>{
+  const email=$('#login-email').value.trim(),password=$('#login-pin').value;
+  if(!email||password.length<12)return gga.notify('Enter your email and a unique password of at least 12 characters.');
+  signup.disabled=true;
+  try{await authMod.createUserWithEmailAndPassword(auth,email,password);$('#login-pin').value='';}
+  catch{$('#login-mode-note').textContent='Account creation failed. Try signing in or resetting your password if you already registered. Otherwise check Firebase setup or try later.';}
+  finally{signup.disabled=false;}
+ });
  window.GGA_REFRESH_LOGIN=loginMode;
  $('#login-form').addEventListener('submit',async e=>{
   e.preventDefault();e.stopImmediatePropagation();$('#login-submit').disabled=true;
@@ -117,6 +126,10 @@ else try{
   try{
    const snap=await fireMod.getDocFromServer(ref);if(ticket!==epoch)return;
    const m=snap.exists()?snap.data():null,p=s.players.find(x=>x.id===m?.playerId&&x.username===m?.username);
+   if(!m){
+    const message='ACCOUNT CREATED · Awaiting Matthew’s roster approval. Send Matthew this account ID: '+user.uid+'. After approval, sign out and sign in again.';
+    announce(message,'preview');$('#login-mode-note').textContent=message;return;
+   }
    if(!m?.active||!p||!['owner','player'].includes(m.role)||(m.role==='owner'&&p.username!=='matthew.ydarraga'))throw Error('No active roster membership. Ask Matthew to check the UID mapping.');
    member=m;
    stops.push(fireMod.onSnapshot(ref,snap=>{
