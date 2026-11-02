@@ -3,14 +3,9 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "gga",
-      "runtime": "nodejs22"
-    }
-  ]
+  "emulators": {
+    "firestore": {"port": 8080},
+    "ui": {"enabled": false},
+    "singleProjectMode": true
+  }
 }

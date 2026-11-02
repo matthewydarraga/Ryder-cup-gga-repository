@@ -3,10 +3,10 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const files=['draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-group.webp','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules','functions/index.js'];
+const files=['draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-group.webp','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules'];
 for(const path of files)assert.ok(fs.existsSync(path),'Required file missing: '+path);
 const html=fs.readFileSync('index.html','utf8');
-for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','draft-order-summary','gga-invite-code']){
+for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','draft-order-summary','login-email']){
  assert.ok(html.includes('id="'+id+'"'),'Required interface element missing: '+id);
 }
 for(const name of ['Matthew Ydarraga','Michael Rodriguez','Jake Norris','Brandon Durman','Will Parker','Ryan Higgins','Jordan McNeely','Reid Mixon','Zach Cousar','Jack Abraham','Peyton Braswell','Nate Cox','Kody Russey'])
@@ -19,7 +19,7 @@ for(const [i,m] of matches.entries()){
  new vm.Script(source,{filename:'index-inline-'+i+'.js'});inline++;
 }
 assert.ok(inline>=1,'No inline app script validated');
-for(const path of ['draft-board.js','player-strengths.js','gga-upgrade.js','functions/index.js','sw.js'])
+for(const path of ['draft-board.js','player-strengths.js','gga-upgrade.js','sw.js'])
  new vm.Script(fs.readFileSync(path,'utf8'),{filename:path});
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 new AsyncFunction(fs.readFileSync('gga-cloud.js','utf8'));
@@ -28,8 +28,9 @@ assert.ok(css.includes('.gga-promo')&&css.includes('.gga-mobile-nav'),'Premium s
 JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
 JSON.parse(fs.readFileSync('firebase.json','utf8'));
 const cloud=fs.readFileSync('gga-cloud.js','utf8');
-assert.ok(cloud.includes('season2027:future?{')&&!cloud.includes('rounds:future.rounds'),'2027 scoring must stay outside public Firestore data');
-assert.ok(cloud.includes("fireMod.doc(db,'private','live2027')"),'Owner-only scoring path missing');
-const functions=fs.readFileSync('functions/index.js','utf8');
-for(const endpoint of ['bootstrapOwner','createInvite','claimPin','signInWithPin','resetMemberPin'])assert.ok(functions.includes('exports.'+endpoint),'Server authentication function missing: '+endpoint);
+assert.ok(cloud.includes("fireMod.doc(db,'private','live2027')"),'Owner-only legacy scoring path missing');
+assert.ok(cloud.includes('signInWithEmailAndPassword')&&cloud.includes('runTransaction'),'Spark authentication and conflict checks missing');
+assert.ok(!/firebase-functions|firebase-storage|httpsCallable|signInWithCustomToken/.test(cloud),'Paid-service dependency found');
+const config=JSON.parse(fs.readFileSync('firebase.json','utf8'));
+assert.ok(!config.functions&&!config.storage&&!config.hosting,'Unexpected deploy target');
 console.log('PASS: GGA 2027 structure, 13-player roster, 2026 archive, code syntax, PWA assets and private scoring separation.');

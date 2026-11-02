@@ -1,72 +1,98 @@
-# Activating GGA live accounts and shared draft
+# Spark-only console setup: gga-ryder-cup
 
-**State:** Code is prepared; Firebase provisioning/deployment still requires Matthew to authorize a Firebase project. GitHub Pages alone cannot securely verify PINs or protect private data.
+These are required activation actions, **not completed or verified by the code change**.
+Keep the existing project on Spark. Never choose Blaze, link billing, create a Storage
+bucket, deploy Functions, or enable an extension. The application stays in device
+preview until the public web config placeholders are filled.
 
-## 1. Establish the cloud project
+1. Export your current app's all-years JSON backup and keep it private. Confirm the
+   2026 history and desired 2027 setup on the device you intend to publish from.
+2. In [Project settings](https://console.firebase.google.com/project/gga-ryder-cup/settings/general),
+   register a **Web app** if none exists. Copy its `apiKey`, `authDomain`, `projectId`
+   and `appId` into `firebase-config.js`. Keep `projectId: 'gga-ryder-cup'`.
+   These public web identifiers are not Admin credentials. Do not invent missing values.
+3. In [Authentication](https://console.firebase.google.com/project/gga-ryder-cup/authentication/providers),
+   enable **Email/Password** only. No phone/SMS, custom tokens or Google bootstrap needed.
+   Add `matthewydarraga.github.io` to Authentication → Settings → Authorized domains.
+   Add `localhost` only if locally testing sign-in. Configure a strong password policy
+   (recommend at least 12 characters) and email enumeration protection where available.
+4. Authentication → Users → Add user: provision each of the 13 roster accounts using
+   the player's real private email and a unique strong temporary password. Use console
+   password-reset emails so each player chooses their own password privately. Never
+   commit or share an account/password table. The app also offers reset-by-email.
+   There is no browser signup form. Auth account creation through the public Auth API
+   is not an authorization bypass: accounts without console grants cannot access Firestore.
+5. In [Firestore](https://console.firebase.google.com/project/gga-ryder-cup/firestore),
+   verify an existing `(default)` database is **Standard edition**. If absent, create
+   Standard edition `(default)` in a location suitable for your group, in production
+   mode (no test-mode public access). Do not create a second database or enable paid
+   backup/PITR/TTL features. The database/edition has not been inspected by this change.
+6. Firestore → Rules: replace the existing rules with the repository's `firestore.rules`
+   and **Publish**. Alternatively, after authenticated CLI setup use only
+   `firebase deploy --only firestore:rules,firestore:indexes --project gga-ryder-cup`.
+   Do not run an old deployment command for Functions or Storage.
+7. Firestore → Data: create `members` and one document for each Auth UID copied from
+   Authentication → Users. Document ID is the exact UID (not email or username).
+   Set these four fields with the correct types:
 
-Connect the **Firebase** app in ChatGPT to your Google/Firebase project so deployment and configuration can be completed from the conversation without manually moving code or downloading Supabase.
+   ```json
+   {"username":"matthew.ydarraga","playerId":"player-matthew-ydarraga","role":"owner","active":true}
+   ```
 
-In the Firebase project:
-- Enable **Cloud Firestore** and **Cloud Storage**.
-- Enable **Authentication**, **Google** provider. Add `matthewydarraga.github.io` under authorized domains.
-- Enable **Cloud Functions**. Firebase Functions deployments may require upgrading the project to Blaze/pay-as-you-go. Set budget alerts.
-- Register a **Web app** and copy its non-secret Firebase config into `firebase-config.js`. This config alone is public; **never** publish admin/service-account credentials.
+   `active` is a boolean. All other fields are strings. Only Matthew has `role:owner`;
+   all other mappings use `role:player`. Do not include emails or secrets in documents.
+   Keep one UID per player; remove stale grants before replacing an account.
 
-## 2. Securely identify the owner
+| Player | username | playerId | role |
+|---|---|---|---|
+| Matthew Ydarraga | matthew.ydarraga | player-matthew-ydarraga | owner |
+| Michael Rodriguez | michael.rodriguez | player-michael-rodriguez | player |
+| Jake Norris | jake.norris | player-jake-norris | player |
+| Brandon Durman | brandon.durman | player-brandon-durman | player |
+| Will Parker | will.parker | player-will-parker | player |
+| Ryan Higgins | ryan.higgins | player-ryan-higgins | player |
+| Jordan McNeely | jordan.mcneely | player-jordan-mcneely | player |
+| Reid Mixon | reid.mixon | player-reid-mixon | player |
+| Zach Cousar | zach.cousar | player-zach-cousar | player |
+| Jack Abraham | jack.abraham | player-jack-abraham | player |
+| Peyton Braswell | peyton.braswell | player-peyton-braswell | player |
+| Nate Cox | nate.cox | player-nate-cox | player |
+| Kody Russey | kody.russey | player-kody-russey | player |
 
-Create `functions/.env` with `GGA_OWNER_EMAIL` set to Matthew's verified Google account address (the exact address is not known here). **Do not** commit this file; it is gitignored.
+8. Merge/release the reviewed static code through GitHub Pages. Sign in as Matthew,
+   verify the local 2026/2027 content, then Owner Studio → **Publish first shared
+   clubhouse from this device**. Nothing auto-uploads the first local record.
+   Do not hand-create `public/clubhouse` or `private/live2027`.
+9. Verify two separate browsers/devices: owner updates appear for a player; a player
+   edits only their own photo/strengths/legend; owner-only tabs are unavailable to the
+   player; a guest/unlisted UID cannot read shared Firestore. Try a score correction
+   and verify it after reload. Verify revoked `members.active:false` denies existing
+   sessions. Confirm 2026 supplied results and 2027 rankings/draft still render.
+10. Watch Firestore Usage and Authentication quotas during rehearsal. Keep Spark;
+    quota errors should prompt waiting/reducing usage, never billing activation.
 
-Deploy from the project root (or through a connected Firebase developer tool):
+## Existing cloud data
 
-```bash
-npm --prefix functions install
-firebase login
-firebase use --add
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions
-```
+If this project has old deployed Functions, manually delete them in the console
+before sharing; removing source does not remove deployed services. Old `/accounts`
+and `/invites` are now denied by rules; export privately and remove legacy credential
+hashes if they exist. This migration has not inspected or deleted server data.
+An old shared schema/revision must be privately backed up and migrated before first
+publication; do not overwrite an unknown existing record. If a legacy Storage bucket
+exists, publish the repository's deny-all `storage.rules` through its console without
+upgrading billing. The new app never requests Storage access.
 
-The cloud functions use Node 22 and `us-central1`.
+## Quotas and limits
 
-## 3. First owner activation
+Firestore's documented free allowance is 50,000 reads and 20,000 writes/day, with
+1 GiB storage for one eligible database. These are quotas, not a guaranteed workload
+capacity. For example, 324 recorded holes × 13 connected members is roughly 4,212
+shared snapshot deliveries plus owner private reads, transaction reads, rule-dependent
+membership reads, profile traffic and reconnects. Test actual usage; no polling is used.
 
-Open the website and select **Sign in → Matthew Ydarraga**. Enter a new six-to-eight-digit owner PIN, then click **Set up Matthew's verified owner account with Google**. Complete the provider sign-in using the email configured in `GGA_OWNER_EMAIL`.
-
-The server verifies the email before granting the owner claim. After activation, Matthew signs in by PIN.
-
-**Recovery:** An owner PIN cannot be reset by a member; owner recovery must be explicitly designed and verified through the Firebase administrator identity. Do not add a public owner reset endpoint.
-
-## 4. Invite members
-
-In **Owner Studio → Member administration**, choose **Invite** next to each golfer. The server creates a random single-use invitation code valid for 72 hours. Send each code privately; do not post it in the whole-group chat.
-
-Members select their own name on the website, enter the invitation, and create their 6–8 digit PIN. The server verifies the invitation, salts and hashes the PIN, and issues a Firebase custom Auth token.
-
-If a PIN is lost, Matthew uses **Reset PIN** to revoke the account and create a new single-use invitation.
-
-## 5. Verify before sharing
-
-Using an incognito window on a second device:
-
-1. Confirm guest can see the clubhouse, complete 2026 match history and 2027 draft.
-2. Confirm guest cannot open Owner Studio, 2027 scoring, Firestore private document or owner-only update endpoints.
-3. Invite a test member, create their PIN, sign in and upload a new profile picture.
-4. Confirm the new picture appears on a different device without a refresh.
-5. Make a draft pick as Matthew and confirm both devices see it.
-6. Confirm a normal member cannot write public data or view private 2027 scoring through Firebase network requests.
-7. Confirm iPhone Add to Home Screen icons/nav, history and photo cropping.
-8. Test a bad PIN five times and confirm account lockout is enforced by Cloud Functions.
-9. Restore test draft changes before sharing widely.
-
-Until these pass, do **not** describe the site as a fully shared multi-user app.
-
-## Security architecture
-
-- Public Firestore document: `public/clubhouse` with profiles, archive and 2027 draft (no GHIN number and no 2027 hole scores).
-- Private Firestore document: `private/live2027`, readable/writable only by Matthew's verified owner account.
-- Player profile photos: Firebase Storage `profile-photos/{playerId}/avatar.jpg`; only that user or Matthew can write it.
-- Server-only collections: `accounts/` (scrypt-salted PIN hash + rate-limiting state), `invites/` (one-way hashed 72-hour invite).
-- Owner calls and server-side Firestore rules enforce permissions; client-side UI restrictions are not relied on for security.
-
-## Note on handicaps and imagery
-
-The site does not have an authenticated USGA GHIN API. Enter verified values manually and maintain verification dates. LA Tech headshots currently link to externally hosted Louisiana Tech Athletics resources; availability and reuse rights should be confirmed separately.
+Firebase references: [pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans),
+[Firestore quotas](https://firebase.google.com/docs/firestore/quotas),
+[password authentication](https://firebase.google.com/docs/auth/web/password-auth),
+[Storage billing requirement](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024).
+Storage requires Blaze; that is why this implementation uses bounded Firestore photos
+and repository cover assets instead.
