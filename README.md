@@ -55,8 +55,13 @@ No cloud photo bucket is used. Cover art is stored in repository assets; existin
 
 ## Scoring and verification
 
-Live Scoring awards independent front-nine, back-nine and overall points (one each;
-ties split). The owner enters agreed hole winners after applying the group's handicap
+Live Scoring supports 1v1, 2v2, 3v3 and 4v4. Each matchup awards one total point;
+a final tie awards half a point per side. Existing live match totals are recalculated
+under this rule. Win estimates use current lead and remaining holes, preferring complete
+team Handicap Index averages, then complete GGA rating averages, otherwise score only.
+This illustrative independent-hole model assumes 30% tied holes and is not calibrated;
+it does not model different team formats or handicap stroke allocations.
+The owner enters agreed hole winners after applying the group's handicap
 and format rules. This feature does not calculate strokes or GHIN allowances. The
 legacy match editor retains its existing separate scoring model; do not enter the same
 competition in both editors expecting their totals to merge.
