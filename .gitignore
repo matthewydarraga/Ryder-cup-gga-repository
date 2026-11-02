@@ -6,3 +6,4 @@ functions/.env.*
 .firebase/
 *.log
 .DS_Store
+security-analysis.local.md

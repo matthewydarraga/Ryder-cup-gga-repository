@@ -1,9 +1,10 @@
-# GGA Ryder Cup web-app deployment
+# GGA deployment status
 
-This branch preserves the original scoring app while adding iPhone Home Screen / PWA installation metadata and a GitHub Pages Actions workflow.
+This change prepares Spark-only Auth + Firestore code. It does not publish Firebase
+rules, create accounts, verify live authentication, or establish a new deployment.
+Complete [CLOUD_SETUP.md](CLOUD_SETUP.md) and verify the production flows before sharing.
 
-**Not yet included on this branch:** The separate full 13-player shared-app package, 2026 archive, Character Forge and Supabase backend must be migrated and tested before claiming those features are live. This step does not create Supabase accounts or GHIN integration.
-
-To deploy after merging, open GitHub repository Settings → Pages and select **GitHub Actions** as the build and deployment source. Then run **Publish GGA Ryder Cup** in Actions if needed. URL: https://matthewydarraga.github.io/Ryder-cup-gga-repository/
-
-The repository is public: never commit Supabase service-role keys, secrets or private player credentials.
+The existing Pages workflow publishes only pushes to `claude/gga-ryder-cup-app-3o1bpp`
+or manual dispatch. A feature branch/PR does not publish the site. Firebase console
+activation and a Pages release are separate steps. GitHub Pages should use GitHub
+Actions as its source. Keep secrets and private user backups out of Pages artifacts.

@@ -1,51 +1,71 @@
-# GGA Ryder Cup — 2027 Clubhouse
+# GGA Ryder Cup
 
-A premium, iPhone-friendly home-screen web app for the GGA Ryder Cup. Hosted on GitHub Pages, with an optional invitation-only Firebase backend for private member accounts and real-time cross-device updates.
+Existing static clubhouse UI, 13-player roster, supplied 2026 history, 2027 rankings,
+draft and match-play scoring. Hosting remains GitHub Pages. The active entry point
+is `index.html`; `app.js` is a legacy app, not loaded by the current page.
 
-**Public website:** https://matthewydarraga.github.io/Ryder-cup-gga-repository/
+The Spark-only implementation uses Firebase email/password Authentication and
+Firestore Standard `(default)`. No Cloud Functions, Cloud Storage, Realtime
+Database, extensions, Blaze, billing account, or credit card are needed by this
+architecture. Cloud configuration still contains placeholders: accounts, rules,
+live syncing and deployment are **not verified active**.
 
-## What is available now
+See [CLOUD_SETUP.md](CLOUD_SETUP.md) for the exact console checklist and roster
+mapping. Do not enable a billing account to complete these steps.
 
-- Midnight-and-gold mobile/desktop clubhouse with alternate owner themes, custom cover, announcements and tournament preview.
-- The full 13-person roster, eleven Louisiana Tech Athletics profile/photo links, and editable profile photographs. Jordan and Reid use their own uploads.
-- Preserved 2026 results from the organizer: six singles, three scrambles and three shambles, with individual win–loss records. Unknown hole cards, official team allocations and final team points are not invented.
-- The 2027 twelve-pick snake draft with six golfers per side and one remaining alternate.
-- Power rankings (depend on manually verified handicap values), 50-character fantasy forge, and a protected-in-the-UI Owner Studio for Matthew.
-- Browser PWA: use **Share → Add to Home Screen** on iPhone.
+## Accounts and permissions
 
-### Deployment modes
+Matthew provisions 13 Firebase Auth accounts and immutable `members/{uid}` mappings
+in the Firebase console, including his own owner mapping. The browser cannot claim
+accounts, create membership records, grant roles or reset another player's password.
+Short PINs remain an explicitly local device preview only when Firebase is unconfigured;
+they never authenticate Firebase. Configured mode fails closed if setup or sign-in fails.
 
-**Preview mode (currently active until Firebase is configured):** Changes and PIN claims exist only on the current device. The site is public, but owner/member permissions are NOT secure and cannot synchronize. Do not invite all players to manage accounts in this mode.
+Members read shared clubhouse/live results and edit only their own profile fields.
+Matthew controls official handicaps, draft, teams, archive and both scoring editors.
+Changing the dropdown to Matthew never grants owner permissions. Removing or setting
+`active:false` on a membership denies subsequent server access, including existing tokens.
+Disable the Auth user too when removing an account. There is no public email directory.
 
-**Live mode (backend supplied but not yet connected):** Server-verified invitation codes and salted PIN hashes, Firebase Authentication custom tokens, Firestore rules, real-time shared draft/history/handicaps, cloud-stored profile photos and owner-only 2027 scoring.
+## Data and live sync
 
-**Do not claim that secure multi-user accounts work until the Firebase project is provisioned, deployed and tested.**
+- `members/{uid}`: console-only grants, each account can fetch its own mapping.
+- `public/clubhouse`: historical path name; reads require active membership. Contains
+  2026 archive, 2027 settings, draft and `liveCup` agreed-hole results.
+- `private/live2027`: legacy owner scoring editor rounds, readable only by owner.
+- `profiles/{playerId}`: bounded profile JPEG, legend and ordered strengths. Member reads.
 
-## Backend activation
+Official aggregates are owner-trusted nested JSON. Rules validate their outer shape,
+revision and paired writes; they do not validate every nested match or prevent the
+owner from entering incorrect results. Profile validation is field-specific.
+Full-document live listeners use no polling. Two owner documents are written atomically
+with increasing revisions; stale owner sessions stop rather than overwrite newer edits.
+Incoming snapshots do not echo saves. Owner saves are debounced; status distinguishes
+unsynced changes, server confirmation, cached data, permission errors and conflicts.
+On errors export a backup before reload; an unconfirmed local score is not a server save.
 
-Read [CLOUD_SETUP.md](CLOUD_SETUP.md). Requires a Firebase project owned by Matthew, Firestore, Storage, Authentication (Google provider for one-time owner activation), and deployed Cloud Functions. No Supabase installation or App Store approval required.
+The owner explicitly publishes the first shared record from Owner Studio after export
+and review. Imported legacy IDs are mapped to fixed roster IDs while preserving history,
+team assignments and draft references. Extra golfers in old imports require manual review;
+the shared architecture accepts exactly 13. Backups and GHIN numbers remain device-only.
 
-### Owner permissions after live activation
+Photos are cropped to 160×160 JPEG, at most 32,000 data-URL characters per profile.
+No cloud photo bucket is used. Cover art is stored in repository assets; existing art and
+2026 group photo remain. Large cover uploads are unavailable in cloud mode.
 
-Matthew signs in using his own six-to-eight-digit PIN after one-time Google verification. He can customize home copy, headlines, accent theme and cover image; edit historical results, 2027 tournament settings and player handicaps; issue/reset player invitations; edit player profiles and manage draft picks and private scoring.
+## Scoring and verification
 
-### Member accounts
+Live Scoring awards independent front-nine, back-nine and overall points (one each;
+ties split). The owner enters agreed hole winners after applying the group's handicap
+and format rules. This feature does not calculate strokes or GHIN allowances. The
+legacy match editor retains its existing separate scoring model; do not enter the same
+competition in both editors expecting their totals to merge.
 
-Every roster member receives a private one-time invite from Matthew, then claims their own member identity and chooses a 6–8 digit PIN. Members can update their photo and select a fantasy avatar. They can view the archive, public draft and stats. Members cannot change team/draft/history/scoring data on the server.
+Run `npm test` (or the three Node scripts individually). Run `npm install`, then
+`npm run test:rules` with Java 21 for emulator authorization tests. Emulator commands
+target `demo-gga-spark`, never the production project. CI runs both suites on PRs.
+Passing emulator tests is not evidence that production rules have been published.
 
-### 2026 archival data source
-
-The match results came from the previously supplied `GGA_Ryder_Cup.html` project. The exact organizers' notes appear in the 2026 History tab. The original app's hole-by-hole cards and final team totals are not supplied and therefore intentionally remain blank.
-
-### Files
-
-- `index.html`: integrated 2027 app, original roster/50 fantasy characters and match engine.
-- `premium.css`: premium design system.
-- `gga-upgrade.js`: clubhouse preview, 2026 history, draft board and owner editor.
-- `gga-cloud.js`: Firebase client adapter that activates only after configuration.
-- `functions/index.js`: secure account invitations, PIN verification, owner bootstrap and resets.
-- `firestore.rules`, `storage.rules`: server-enforced authorization.
-- `firebase-config.js`: public Firebase web project configuration (no private keys).
-- `sw.js`, `manifest.webmanifest`: installable PWA and offline support.
-
-**Security:** Never commit Firebase Admin credentials, service account JSON, a Firebase service-role key, or a secret owner PIN. Browser-local restrictions are not a security boundary.
+Keep backups private. Previously downloaded or browser-cached data cannot be revoked.
+The static roster and supplied historical notes are still part of this public source
+repository. Never commit passwords, private emails, PINs or service-account credentials.

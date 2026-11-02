@@ -1,36 +1,82 @@
 rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
-  function signedIn(){return request.auth != null;}
-  function accountActive(){
-   return signedIn() && request.auth.token.username is string &&
-    exists(/databases/$(database)/documents/accounts/$(request.auth.token.username)) &&
-    get(/databases/$(database)/documents/accounts/$(request.auth.token.username)).data.uid == request.auth.uid;
+  // members/{authUID}: console-only {username:string, playerId:string,
+  // role:'owner'|'player', active:bool}. No emails, passwords or PIN hashes here.
+  // public/clubhouse: member-readable official archive, draft and liveCup.
+  // private/live2027: owner-only legacy match editor rounds. Same revision as clubhouse.
+  // profiles/{playerId}: optional photoData JPEG <=32K chars, legend ID,
+  // ordered four strengths; required updatedAt server timestamp. No identity fields.
+  function roster(){return {
+   'matthew.ydarraga':'player-matthew-ydarraga','michael.rodriguez':'player-michael-rodriguez',
+   'jake.norris':'player-jake-norris','brandon.durman':'player-brandon-durman',
+   'will.parker':'player-will-parker','ryan.higgins':'player-ryan-higgins',
+   'jordan.mcneely':'player-jordan-mcneely','reid.mixon':'player-reid-mixon',
+   'zach.cousar':'player-zach-cousar','jack.abraham':'player-jack-abraham',
+   'peyton.braswell':'player-peyton-braswell','nate.cox':'player-nate-cox','kody.russey':'player-kody-russey'
+  };}
+  function active(){
+   let m=get(/databases/$(database)/documents/members/$(request.auth.uid)).data;
+   return request.auth!=null && m.keys().hasAll(['username','playerId','role','active'])
+    && m.active==true && m.username in roster() && m.playerId==roster()[m.username]
+    && m.role in ['owner','player'] && (m.role!='owner'||m.username=='matthew.ydarraga');
   }
-  function isOwner(){return accountActive() && request.auth.token.owner == true && request.auth.token.username == 'matthew.ydarraga';}
-  function isSelf(playerId){return accountActive() && request.auth.token.playerId == playerId;}
+  function owner(){return active() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role=='owner';}
+  function self(id){return active() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId==id;}
+  function validProfile(d){
+   return d.keys().hasOnly(['photoData','fantasyCharacterId','strengthOrder','updatedAt'])
+    && d.keys().hasAll(['updatedAt']) && d.updatedAt==request.time
+    && (!('photoData' in d)||(d.photoData is string && d.photoData.size()<=32000
+      && d.photoData.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$')))
+    && (!('fantasyCharacterId' in d)||(d.fantasyCharacterId is string
+      && d.fantasyCharacterId.matches('^legend-[a-z-]{1,50}$')))
+    && (!('strengthOrder' in d)||(d.strengthOrder is list && d.strengthOrder.size()==4
+      && d.strengthOrder.toSet().size()==4 && d.strengthOrder.hasOnly(['Driving','Approach','Chipping','Putting'])));
+  }
+  function validClubhouse(d){
+   return d.keys().hasOnly(['schemaVersion','players','season2026','season2027','clubhouse','draft2027','liveCup','handicapWeight','revision','updatedAt'])
+    && d.keys().hasAll(['schemaVersion','players','season2026','season2027','clubhouse','draft2027','liveCup','handicapWeight','revision','updatedAt'])
+    && d.schemaVersion==4 && d.players is list && d.players.size()==13
+    && d.season2026 is map && d.season2026.year==2026 && d.season2026.rounds is list
+    && d.season2027 is map && d.season2027.year==2027
+    && d.season2027.keys().hasOnly(['year','location','date','teams','roster'])
+    && d.clubhouse is map && !d.clubhouse.keys().hasAny(['coverData','coverPath'])
+    && d.draft2027 is map && d.draft2027.picks is list && d.draft2027.picks.size()<=12
+    && d.liveCup is map && d.liveCup.year==2027 && d.liveCup.rounds is list && d.liveCup.rounds.size()<=30
+    && d.handicapWeight is number && d.handicapWeight>=0 && d.handicapWeight<=100
+    && d.revision is int && d.revision>0 && d.updatedAt==request.time
+    && getAfter(/databases/$(database)/documents/private/live2027).data.revision==d.revision
+    && getAfter(/databases/$(database)/documents/private/live2027).data.updatedAt==request.time;
+  }
+  function validPrivate(d){
+   return d.keys().hasOnly(['year','rounds','revision','updatedAt'])
+    && d.keys().hasAll(['year','rounds','revision','updatedAt']) && d.year==2027
+    && d.rounds is list && d.rounds.size()<=30 && d.revision is int && d.revision>0
+    && d.updatedAt==request.time
+    && getAfter(/databases/$(database)/documents/public/clubhouse).data.revision==d.revision
+    && getAfter(/databases/$(database)/documents/public/clubhouse).data.updatedAt==request.time;
+  }
+  match /members/{uid} {
+   allow get: if request.auth!=null && request.auth.uid==uid;
+   allow list,write: if false;
+  }
   match /public/clubhouse {
-   allow read: if true;
-   allow create,update,delete: if isOwner();
-  }
-  match /profiles/{playerId} {
-   allow read: if true;
-   allow create,update: if isOwner() || (isSelf(playerId)
-    && request.resource.data.keys().hasOnly(['photoPath','fantasyCharacterId','strengthOrder','updatedAt'])
-    && (!request.resource.data.keys().hasAny(['strengthOrder']) ||
-     (request.resource.data.strengthOrder is list && request.resource.data.strengthOrder.size() == 4
-      && request.resource.data.strengthOrder.toSet().size() == 4
-      && request.resource.data.strengthOrder.hasOnly(['Driving','Approach','Chipping','Putting'])))
-    && (!request.resource.data.keys().hasAny(['photoPath']) || (request.resource.data.photoPath is string
-    && request.resource.data.photoPath.matches('profile-photos/'+playerId+'/avatar\\.jpg')))
-    && request.resource.data.updatedAt is timestamp);
-   allow delete: if isOwner();
+   allow read: if active();
+   allow create: if owner() && validClubhouse(request.resource.data) && request.resource.data.revision==1;
+   allow update: if owner() && validClubhouse(request.resource.data) && request.resource.data.revision==resource.data.revision+1;
+   allow delete: if false;
   }
   match /private/live2027 {
-   allow read,write: if isOwner();
+   allow read: if owner();
+   allow create: if owner() && validPrivate(request.resource.data) && request.resource.data.revision==1;
+   allow update: if owner() && validPrivate(request.resource.data) && request.resource.data.revision==resource.data.revision+1;
+   allow delete: if false;
   }
-  match /accounts/{id} {allow read,write: if false;}
-  match /invites/{id} {allow read,write: if false;}
+  match /profiles/{playerId} {
+   allow read: if active();
+   allow create,update: if (owner()||self(playerId)) && playerId in roster().values() && validProfile(request.resource.data);
+   allow delete: if owner();
+  }
   match /{document=**} {allow read,write: if false;}
  }
 }
