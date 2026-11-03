@@ -87,7 +87,7 @@ else try{
    const message='REGISTRATION SAVED · '+selected.name+' · Awaiting Matthew’s roster approval. Sign in again after approval. No account ID is needed.';
    announce(message,'preview');$('#login-mode-note').textContent=message;
   }
-  catch{$('#login-mode-note').textContent='Account creation failed. Try signing in or resetting your password if you already registered. Otherwise check Firebase setup or try later.';}
+  catch(e){const code=String(e?.code||'unknown-error').replace(/^auth\//,'');const hints={'operation-not-allowed':'Enable Email/Password under Firebase Authentication → Sign-in method.','unauthorized-domain':'Add this website domain under Firebase Authentication → Settings → Authorized domains.','email-already-in-use':'This email already has an account. Sign in or reset your password.','weak-password':'Choose a stronger password.','invalid-email':'Enter a valid email address.','network-request-failed':'Check your connection and try again.','too-many-requests':'Too many attempts. Wait before trying again.','invalid-api-key':'Check the Firebase web app configuration.'};$('#login-mode-note').textContent='Registration failed ('+code+'). '+(hints[code]||'Ask Matthew to check Firebase Authentication settings.');}
   finally{signup.disabled=false;}
  });
  window.GGA_REFRESH_LOGIN=loginMode;
