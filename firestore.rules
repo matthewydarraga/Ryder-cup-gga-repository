@@ -73,9 +73,36 @@ service cloud.firestore {
     && getAfter(/databases/$(database)/documents/public/clubhouse).data.revision==d.revision
     && getAfter(/databases/$(database)/documents/public/clubhouse).data.updatedAt==request.time;
   }
+  // Self-registration is limited to unclaimed non-owner roster slots.
+  // rosterClaims/{username}: immutable {uid:string, playerId:string}; no contact data.
+  function validPlayerMembership(d){
+   return d.keys().hasAll(['username','playerId','role','active'])
+    && d.keys().hasOnly(['username','playerId','role','active'])
+    && d.username is string && d.username in roster() && d.username!='matthew.ydarraga'
+    && d.playerId==roster()[d.username] && d.role=='player' && d.active==true;
+  }
+  function validClaim(d,username){
+   return d.keys().hasAll(['uid','playerId']) && d.keys().hasOnly(['uid','playerId'])
+    && username in roster() && username!='matthew.ydarraga'
+    && d.uid is string && d.uid==request.auth.uid && d.uid.size()<=128
+    && d.playerId==roster()[username];
+  }
   match /members/{uid} {
    allow get: if request.auth!=null && request.auth.uid==uid;
-   allow list,write: if false;
+   allow create: if request.auth!=null && request.auth.uid==uid
+    && validPlayerMembership(request.resource.data)
+    && getAfter(/databases/$(database)/documents/rosterClaims/$(request.resource.data.username)).data.uid==uid
+    && getAfter(/databases/$(database)/documents/rosterClaims/$(request.resource.data.username)).data.playerId==request.resource.data.playerId;
+   allow list,update,delete: if false;
+  }
+  match /rosterClaims/{username} {
+   allow get: if request.auth!=null;
+   allow create: if request.auth!=null && validClaim(request.resource.data,username)
+    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.username==username
+    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId==request.resource.data.playerId
+    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.role=='player'
+    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.active==true;
+   allow list,update,delete: if false;
   }
   match /public/clubhouse {
    allow read: if active();
@@ -97,4 +124,5 @@ service cloud.firestore {
   match /{document=**} {allow read,write: if false;}
  }
 }
+
 

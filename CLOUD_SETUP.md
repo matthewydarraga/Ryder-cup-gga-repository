@@ -99,3 +99,8 @@ Firebase references: [pricing plans](https://firebase.google.com/docs/projects/b
 [Storage billing requirement](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024).
 Storage requires Blaze; that is why this implementation uses bounded Firestore photos
 and repository cover assets instead.
+
+
+
+## Automatic roster registration
+Players select their roster name and create an email/password account. The app atomically creates a player-only `members/{uid}` record and immutable `rosterClaims/{username}` binding. Each non-owner roster name can be registered once. Existing pending accounts can sign in with their saved roster name to complete registration. Matthew’s existing owner membership remains console-managed; signup cannot create or elevate an owner. To correct a mistaken claim, use the Firebase Console after verifying the person’s existing authentication UID. No Functions, Storage, billing account or paid service is used.

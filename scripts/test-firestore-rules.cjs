@@ -50,6 +50,26 @@ const fs=require('node:fs');
   await assertSucceeds(updateDoc(own,{manualStats:{version:1,handicap:null,year:2026,best:null,worst:null},updatedAt:serverTimestamp()}));
   await assertFails(getDocs(collection(guest,'profiles')));
   await assertFails(getDoc(doc(owner,'accounts','legacy')));await assertFails(getDoc(doc(owner,'invites','legacy')));
+  const newDb=env.authenticatedContext('new-player').firestore(),duplicate=env.authenticatedContext('duplicate').firestore();
+  const signupMember={username:'will.parker',playerId:'player-will-parker',role:'player',active:true};
+  const register=(db,uid,m=signupMember)=>{const b=writeBatch(db);b.set(doc(db,'members',uid),m);b.set(doc(db,'rosterClaims',m.username),{uid,playerId:m.playerId});return b.commit();};
+  await assertFails(setDoc(doc(newDb,'members','new-player'),signupMember));
+  await assertFails(setDoc(doc(newDb,'rosterClaims','will.parker'),{uid:'new-player',playerId:'player-will-parker'}));
+  await assertFails(register(guest,'new-player'));
+  await assertFails(register(newDb,'different-user'));
+  await assertFails(register(newDb,'new-player',{...signupMember,role:'owner'}));
+  await assertFails(register(newDb,'new-player',{...signupMember,username:'matthew.ydarraga',playerId:'player-matthew-ydarraga'}));
+  await assertFails(register(newDb,'new-player',{...signupMember,playerId:'player-reid-mixon'}));
+  await assertFails(register(newDb,'new-player',{...signupMember,extra:true}));
+  await assertSucceeds(register(newDb,'new-player'));
+  await assertSucceeds(getDoc(doc(newDb,'public','clubhouse')));
+  await assertFails(getDoc(doc(newDb,'private','live2027')));
+  await assertFails(register(duplicate,'duplicate'));
+  await assertFails(updateDoc(doc(newDb,'members','new-player'),{role:'owner'}));
+  await assertFails(updateDoc(doc(newDb,'rosterClaims','will.parker'),{uid:'duplicate'}));
+  await assertFails(deleteDoc(doc(newDb,'rosterClaims','will.parker')));
+  await assertFails(register(newDb,'new-player',{...signupMember,username:'nate.cox',playerId:'player-nate-cox'}));
+  await assertFails(getDocs(collection(newDb,'rosterClaims')));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'members','player'),{active:false}));
   await assertFails(getDoc(doc(player,'public','clubhouse')));await assertFails(setDoc(own,profile));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'members','owner'),{active:false}));
@@ -57,4 +77,5 @@ const fs=require('node:fs');
   console.log('PASS: emulator rules: owner/member/guest, role escalation, atomic revisions, profiles, size/schema validation, disabled accounts');
  }finally{await env.cleanup();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
 
