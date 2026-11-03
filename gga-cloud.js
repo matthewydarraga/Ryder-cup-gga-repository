@@ -76,11 +76,12 @@ else try{
  function loginMode(){$('#gga-login-guidance').textContent='Select your roster name, then use your own email and password.';$('#login-mode-note').textContent='Your selected name is saved with your account for Matthew to approve. No account IDs to copy.';$('#login-submit').textContent='Sign in';}
  const signup=document.createElement('button');signup.type='button';signup.id='gga-create-account';signup.className='btn btn-secondary';signup.textContent='Create account';$('#login-form').append(signup);
  signup.addEventListener('click',async()=>{
+  $('#login-mode-note').textContent='Checking registration details…';
   const email=$('#login-email').value.trim(),password=$('#login-pin').value;
   const selected=s.players.find(p=>p.username===$('#login-player').value);
-  if(!selected)return gga.notify('Select your name from the roster first.');
-  if(!email||password.length<12)return gga.notify('Enter your email and a unique password of at least 12 characters.');
-  signup.disabled=true;
+  if(!selected){$('#login-mode-note').textContent='Select your player name first.';return;}
+  if(!email||password.length<12){$('#login-mode-note').textContent='Enter a valid email and a password of at least 12 characters.';return;}
+  signup.disabled=true;$('#login-mode-note').textContent='Contacting Firebase to create your account…';
   try{
    const user=auth.currentUser?.email?.toLowerCase()===email.toLowerCase()?auth.currentUser:(await authMod.createUserWithEmailAndPassword(auth,email,password)).user;
    await authMod.updateProfile(user,{displayName:selected.name});$('#login-pin').value='';
@@ -169,4 +170,4 @@ else try{
  window.GGA_BACKEND_API={ownerAllowed,canPublishFirst:()=>ownerAllowed()&&revision===null};window.GGA_LOGIN_READY=true;loginMode();
  window.addEventListener('offline',()=>announce('OFFLINE · Changes are not confirmed. Reconnect before editing.','preview'));
  window.addEventListener('beforeunload',e=>{if(dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
-}catch(e){announce('FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200),'error');}
+}catch(e){const message='FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200);announce(message,'error');const note=$('#login-mode-note');if(note)note.textContent=message;}
