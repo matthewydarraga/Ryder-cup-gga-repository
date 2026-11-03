@@ -28,14 +28,14 @@ else try{
  function content(){
   const future=s.seasons.find(x=>x.year===2027);
   return JSON.parse(JSON.stringify({schemaVersion:4,
-   players:s.players.map(p=>({id:p.id,name:p.name,username:p.username,football:p.football||null,position:p.position||'',officialPhoto:p.officialPhoto||null,officialPhotoFallback:p.officialPhotoFallback||null,handicap:p.handicap??null,handicapChecked:p.handicapChecked||null})),
+   players:s.players.map(p=>({id:p.id,name:p.name,username:p.username,football:p.football||null,position:p.position||'',officialPhoto:p.officialPhoto||null,officialPhotoFallback:p.officialPhotoFallback||null,handicap:null,handicapChecked:null})),
    season2026:s.seasons.find(x=>x.year===2026),
    season2027:{year:2027,location:future.location,date:future.date,teams:future.teams,roster:future.roster},
    clubhouse:Object.fromEntries(Object.entries(s.clubhouse||{}).filter(([k])=>!['coverData','coverPath'].includes(k))),
    draft2027:s.draft2027,liveCup:s.liveCup||{year:2027,rounds:[]},handicapWeight:s.handicapWeight??70,privateRounds:future.rounds||[]
   }));
  }
- function applyProfile(p){const d=profiles.get(p.id);p.customPhoto=d?.photoData||null;p.fantasyCharacterId=d?.fantasyCharacterId||null;p.strengthOrder=d?.strengthOrder||null;}
+ function applyProfile(p){const d=profiles.get(p.id);p.customPhoto=d?.photoData||null;p.fantasyCharacterId=d?.fantasyCharacterId||null;p.strengthOrder=d?.strengthOrder||null;p.manualStats=d?.manualStats?.version===1?d.manualStats:null;p.handicap=p.manualStats?.handicap??null;p.handicapChecked=null;}
  function patch(d,privateData){
   suppress=true;
   try{
@@ -108,6 +108,7 @@ else try{
   try{await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{...fields,updatedAt:fireMod.serverTimestamp()},{merge:true});}
   catch(e){gga.notify('Profile did not sync. Reload to restore the server copy.');throw e;}
  }
+ window.GGA_SAVE_MANUAL_STATS=(p,manualStats)=>saveProfile(p,{manualStats});
  window.GGA_SAVE_STRENGTHS=(p,strengthOrder)=>saveProfile(p,{strengthOrder});
  window.GGA_CHARACTER_UPDATED=p=>saveProfile(p,{fantasyCharacterId:p.fantasyCharacterId}).catch(()=>{});
  window.GGA_UPLOAD_PHOTO=async(file,p)=>{
@@ -161,8 +162,8 @@ else try{
      gga.closeLogin();
     }catch(e){fail(e);}
    },fail));
-   stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),snap=>{
-    if(ticket!==epoch)return;
+   stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),{includeMetadataChanges:true},snap=>{
+    if(ticket!==epoch||snap.metadata?.hasPendingWrites)return;
     for(const c of snap.docChanges()){if(c.type==='removed')profiles.delete(c.doc.id);else profiles.set(c.doc.id,c.doc.data());const p=s.players.find(p=>p.id===c.doc.id);if(p)applyProfile(p);}render();
    },fail));
   }catch(e){if(ticket===epoch){stop();announce('ACCOUNT NOT AUTHORIZED · '+errorText(e),'error');await authMod.signOut(auth);}}
@@ -171,3 +172,4 @@ else try{
  window.addEventListener('offline',()=>announce('OFFLINE · Changes are not confirmed. Reconnect before editing.','preview'));
  window.addEventListener('beforeunload',e=>{if(dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
 }catch(e){const message='FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200);announce(message,'error');const note=$('#login-mode-note');if(note)note.textContent=message;}
+

@@ -23,8 +23,25 @@ service cloud.firestore {
   }
   function owner(){return active() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role=='owner';}
   function self(id){return active() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId==id;}
+  // manualStats: player-entered handicap and one editable annual best/worst record.
+  function validManualRound(r){
+   return r==null || (r is map && r.keys().hasAll(['score','course','location'])
+    && r.keys().hasOnly(['score','course','location'])
+    && r.score is int && r.score>=18 && r.score<=300
+    && r.course is string && r.course.size()>0 && r.course.size()<=120
+    && r.location is string && r.location.size()>0 && r.location.size()<=120);
+  }
+  function validManualStats(d){
+   return d is map && d.keys().hasAll(['version','handicap','year','best','worst'])
+    && d.keys().hasOnly(['version','handicap','year','best','worst']) && d.version==1
+    && (d.handicap==null || (d.handicap is number && d.handicap>=-10 && d.handicap<=54))
+    && d.year is int && d.year>=2020 && d.year<=2100
+    && validManualRound(d.best) && validManualRound(d.worst)
+    && (d.best==null || d.worst==null || d.best.score<=d.worst.score);
+  }
   function validProfile(d){
-   return d.keys().hasOnly(['photoData','fantasyCharacterId','strengthOrder','updatedAt'])
+   return d.keys().hasOnly(['photoData','fantasyCharacterId','strengthOrder','manualStats','updatedAt'])
+    && (!('manualStats' in d)||validManualStats(d.manualStats))
     && d.keys().hasAll(['updatedAt']) && d.updatedAt==request.time
     && (!('photoData' in d)||(d.photoData is string && d.photoData.size()<=32000
       && d.photoData.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$')))
@@ -80,3 +97,4 @@ service cloud.firestore {
   match /{document=**} {allow read,write: if false;}
  }
 }
+

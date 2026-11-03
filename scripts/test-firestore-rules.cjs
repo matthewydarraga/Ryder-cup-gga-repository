@@ -38,6 +38,17 @@ const fs=require('node:fs');
   await assertFails(setDoc(own,{...profile,photoData:'data:image/jpeg;base64,'+'a'.repeat(32000)}));
   await assertSucceeds(setDoc(own,{...profile,photoData:'data:image/jpeg;base64,YQ==',fantasyCharacterId:'legend-tiger-woods'}));
   await assertFails(setDoc(doc(owner,'profiles','unknown-player'),profile));
+  const manualStats={version:1,handicap:14.2,year:2026,best:{score:80,course:'Pine Dunes',location:'Frankston, TX'},worst:{score:99,course:'Westridge',location:'McKinney, TX'}};
+  await assertSucceeds(setDoc(own,{...profile,manualStats}));
+  await assertFails(setDoc(other,{...profile,manualStats}));
+  await assertFails(setDoc(own,{...profile,manualStats:{...manualStats,handicap:90}}));
+  await assertFails(updateDoc(own,{'manualStats.handicap':'14'}));
+  await assertFails(updateDoc(own,{'manualStats.best.course':'a'.repeat(121)}));
+  await assertFails(updateDoc(own,{'manualStats.role':'owner'}));
+  await assertFails(updateDoc(own,{'manualStats.best.score':120}));
+  await assertFails(setDoc(own,{...profile,manualStats:{...manualStats,best:{score:80}}}));
+  await assertSucceeds(updateDoc(own,{manualStats:{version:1,handicap:null,year:2026,best:null,worst:null},updatedAt:serverTimestamp()}));
+  await assertFails(getDocs(collection(guest,'profiles')));
   await assertFails(getDoc(doc(owner,'accounts','legacy')));await assertFails(getDoc(doc(owner,'invites','legacy')));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'members','player'),{active:false}));
   await assertFails(getDoc(doc(player,'public','clubhouse')));await assertFails(setDoc(own,profile));
@@ -46,3 +57,4 @@ const fs=require('node:fs');
   console.log('PASS: emulator rules: owner/member/guest, role escalation, atomic revisions, profiles, size/schema validation, disabled accounts');
  }finally{await env.cleanup();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
