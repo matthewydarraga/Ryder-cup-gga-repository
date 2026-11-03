@@ -16,11 +16,13 @@ preview until the public web config placeholders are filled.
    Add `matthewydarraga.github.io` to Authentication → Settings → Authorized domains.
    Add `localhost` only if locally testing sign-in. Configure a strong password policy
    (recommend at least 12 characters) and email enumeration protection where available.
-4. Authentication → Users → Add user: provision each of the 13 roster accounts using
+4. Players may use Create account in the app to register their own email/password.
+   Their pending-approval screen displays the UID for Matthew to map in step 7.
+   Alternatively, Authentication → Users → Add user: provision each roster account using
    the player's real private email and a unique strong temporary password. Use console
    password-reset emails so each player chooses their own password privately. Never
    commit or share an account/password table. The app also offers reset-by-email.
-   There is no browser signup form. Auth account creation through the public Auth API
+   The browser signup form creates an Auth account only. Auth account creation through the public Auth API
    is not an authorization bypass: accounts without console grants cannot access Firestore.
 5. In [Firestore](https://console.firebase.google.com/project/gga-ryder-cup/firestore),
    verify an existing `(default)` database is **Standard edition**. If absent, create
