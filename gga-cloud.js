@@ -14,6 +14,7 @@ else try{
  await authMod.setPersistence(auth,authMod.browserSessionPersistence);
  const publicRef=fireMod.doc(db,'public','clubhouse'),privateRef=fireMod.doc(db,'private','live2027');
  const s=gga.getState(),profiles=new Map();
+ const rosterPhotos=new Map(s.players.map(p=>[p.id,{officialPhoto:p.officialPhoto,officialPhotoFallback:p.officialPhotoFallback}]));
  let member=null,ready=false,suppress=false,revision=null,dirty=false,saving=false,blocked=false,timer=null,epoch=0,changes=0;
  let stops=[],lastContent='',pendingBackup=null;
  const errorText=e=>String(e?.message||e).slice(0,220);
@@ -39,7 +40,7 @@ else try{
  function patch(d,privateData){
   suppress=true;
   try{
-   const old=new Map(s.players.map(p=>[p.id,p]));s.players=d.players.map(p=>({...p,ghinNumber:old.get(p.id)?.ghinNumber||''}));s.players.forEach(applyProfile);
+   const old=new Map(s.players.map(p=>[p.id,p]));s.players=d.players.map(p=>({...p,officialPhoto:rosterPhotos.get(p.id)?.officialPhoto||p.officialPhoto||null,officialPhotoFallback:rosterPhotos.get(p.id)?.officialPhotoFallback||p.officialPhotoFallback||null,ghinNumber:old.get(p.id)?.ghinNumber||''}));s.players.forEach(applyProfile);
    Object.assign(s.seasons.find(x=>x.year===2026),d.season2026);
    Object.assign(s.seasons.find(x=>x.year===2027),d.season2027,{rounds:privateData?.rounds||[]});
    s.clubhouse={...d.clubhouse};Object.assign(s.draft2027,d.draft2027);s.draft2027.picks=[...d.draft2027.picks];

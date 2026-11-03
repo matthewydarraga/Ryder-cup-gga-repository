@@ -230,6 +230,8 @@ const PLAYER_CATALOG=[
 ['Kody Russey','kody.russey','kody-russey/6289','2020/7/31/Russey_Kody.jpg','Offensive Line · #65']
 ].map(([name,username,football,image,position])=>({name,username,football:football?`https://latechsports.com/sports/football/roster/${football}`:null,photo:image?`https://images.sidearmdev.com/crop?height=270&type=webp&url=${encodeURIComponent('https://dxbhsrqyrr690.cloudfront.net/sidearm.nextgen.sites/latechsports.com/images/'+image)}&width=180`:null,photoFallback:image?'https://dxbhsrqyrr690.cloudfront.net/sidearm.nextgen.sites/latechsports.com/images/'+image:null,position}));
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='brandon.durman'),{photo:'./assets/brandon-green-jacket.webp',photoFallback:'./assets/brandon-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='jordan.mcneely'),{photo:'./assets/jordan-green-jacket.webp',photoFallback:'./assets/jordan-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='reid.mixon'),{photo:'./assets/reid-green-jacket.webp',photoFallback:'./assets/reid-green-jacket.webp'});
 let state;try{state=JSON.parse(localStorage.getItem(STORE));if(!state?.players||!state?.seasons)throw Error('No save')}catch{state=initial()};
 const normalizeName=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 function mergeCatalog(){
@@ -385,5 +387,5 @@ render();save();
     if(status)status.textContent='Firebase loading failed: '+String(e.reason?.message||e.reason||'Unknown error').slice(0,160);
   });
 })();
-</script><script type="module" src="./gga-cloud.js?v=20261103-manual-stats-r2"></script></body></html>
+</script><script type="module" src="./gga-cloud.js?v=20261103-portraits"></script></body></html>
 
