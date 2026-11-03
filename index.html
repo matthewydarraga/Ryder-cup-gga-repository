@@ -366,4 +366,23 @@ window.GGA={getState:()=>state,getUser:currentUser,isOwner:isOrganizer,save,rend
 window.GGA.openMyProfile=()=>{if(!currentUser()){showTab('profile');return;}selectedPlayer=currentUser().id;showTab('players');document.body.dataset.profileView='true';renderPlayerProfile();if(window.GGA_ON_TAB)window.GGA_ON_TAB('profile');};
 render();save();
 })();
-</script><script src="./ghin-snapshot.js?v=20261021a"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261102-spark"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261022-rankings"></script><script src="./live-scoring.js?v=20261102-course"></script><script type="module" src="./gga-cloud.js?v=20261102-spark"></script></body></html>
+</script><script src="./ghin-snapshot.js?v=20261021a"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261102-spark"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261022-rankings"></script><script src="./live-scoring.js?v=20261102-course"></script><script>
+(function(){
+  if(!window.GGA_BACKEND_CONFIGURED)return;
+  const status=document.getElementById('login-mode-note');
+  const modal=document.getElementById('login-mask');
+  const observer=new MutationObserver(()=>{
+    if(!modal?.classList.contains('open'))return;
+    if(!window.GGA_LOGIN_READY && status)status.textContent='Connecting to Firebase… If this remains visible, the registration module did not load. Send a screenshot.';
+  });
+  if(modal)observer.observe(modal,{attributes:true,attributeFilter:['class']});
+  window.addEventListener('error',e=>{
+    if(window.GGA_LOGIN_READY)return;
+    if(status)status.textContent='Website script error: '+String(e.message||'Unknown error').slice(0,160);
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    if(window.GGA_LOGIN_READY)return;
+    if(status)status.textContent='Firebase loading failed: '+String(e.reason?.message||e.reason||'Unknown error').slice(0,160);
+  });
+})();
+</script><script type="module" src="./gga-cloud.js?v=20261103-registration-diagnostics"></script></body></html>
