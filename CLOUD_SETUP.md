@@ -17,7 +17,8 @@ preview until the public web config placeholders are filled.
    Add `localhost` only if locally testing sign-in. Configure a strong password policy
    (recommend at least 12 characters) and email enumeration protection where available.
 4. Players may use Create account in the app to register their own email/password.
-   Their pending-approval screen displays the UID for Matthew to map in step 7.
+   Their selected roster name is saved as the Auth display name. Matthew verifies the
+   account in Authentication and copies its UID for step 7; players need not send IDs.
    Alternatively, Authentication → Users → Add user: provision each roster account using
    the player's real private email and a unique strong temporary password. Use console
    password-reset emails so each player chooses their own password privately. Never

@@ -73,13 +73,20 @@ else try{
   if(dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
  };
- function loginMode(){$('#login-mode-note').textContent='Sign in or create your own account. Matthew approves your roster profile; choosing a player never grants access.';$('#login-submit').textContent='Sign in';}
+ function loginMode(){$('#gga-login-guidance').textContent='Select your roster name, then use your own email and password.';$('#login-mode-note').textContent='Your selected name is saved with your account for Matthew to approve. No account IDs to copy.';$('#login-submit').textContent='Sign in';}
  const signup=document.createElement('button');signup.type='button';signup.id='gga-create-account';signup.className='btn btn-secondary';signup.textContent='Create account';$('#login-form').append(signup);
  signup.addEventListener('click',async()=>{
   const email=$('#login-email').value.trim(),password=$('#login-pin').value;
+  const selected=s.players.find(p=>p.username===$('#login-player').value);
+  if(!selected)return gga.notify('Select your name from the roster first.');
   if(!email||password.length<12)return gga.notify('Enter your email and a unique password of at least 12 characters.');
   signup.disabled=true;
-  try{await authMod.createUserWithEmailAndPassword(auth,email,password);$('#login-pin').value='';}
+  try{
+   const user=auth.currentUser?.email?.toLowerCase()===email.toLowerCase()?auth.currentUser:(await authMod.createUserWithEmailAndPassword(auth,email,password)).user;
+   await authMod.updateProfile(user,{displayName:selected.name});$('#login-pin').value='';
+   const message='REGISTRATION SAVED · '+selected.name+' · Awaiting Matthew’s roster approval. Sign in again after approval. No account ID is needed.';
+   announce(message,'preview');$('#login-mode-note').textContent=message;
+  }
   catch{$('#login-mode-note').textContent='Account creation failed. Try signing in or resetting your password if you already registered. Otherwise check Firebase setup or try later.';}
   finally{signup.disabled=false;}
  });
@@ -127,7 +134,7 @@ else try{
    const snap=await fireMod.getDocFromServer(ref);if(ticket!==epoch)return;
    const m=snap.exists()?snap.data():null,p=s.players.find(x=>x.id===m?.playerId&&x.username===m?.username);
    if(!m){
-    const message='ACCOUNT CREATED · Awaiting Matthew’s roster approval. Send Matthew this account ID: '+user.uid+'. After approval, sign out and sign in again.';
+    const message='ACCOUNT CREATED · Awaiting Matthew’s roster approval. Your selected name is attached to your registration. Sign in again after approval.';
     announce(message,'preview');$('#login-mode-note').textContent=message;return;
    }
    if(!m?.active||!p||!['owner','player'].includes(m.role)||(m.role==='owner'&&p.username!=='matthew.ydarraga'))throw Error('No active roster membership. Ask Matthew to check the UID mapping.');

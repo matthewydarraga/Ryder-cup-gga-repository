@@ -17,8 +17,10 @@ mapping. Do not enable a billing account to complete these steps.
 
 Players can register their own Firebase email/password account using Create account.
 Matthew approves each account by creating its `members/{uid}` roster mapping in the
-Firebase console, including his own owner mapping. Pending users see their UID to send
-privately to Matthew, then sign in again after approval. Registration alone grants no
+Firebase console, including his own owner mapping. Signup saves the selected roster name
+as the Firebase Auth display name; players no longer send UIDs. Matthew finds the account
+in Authentication, verifies its owner and maps its UID, then players sign in again. The
+display name is an unverified request, never an authorization claim. Registration grants no
 roster or owner access. The browser cannot create membership records, grant roles or
 reset another player's password.
 Short PINs remain an explicitly local device preview only when Firebase is unconfigured;
