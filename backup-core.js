@@ -1,5 +1,6 @@
 /* Project Revamp: portable application backups. No credentials or memberships. */
 (function(root){'use strict';
+const results=typeof module!=='undefined'?require('./results-core.js'):root.GGA_RESULTS;
 const FORMAT='gga-complete-backup',VERSION=1,MAX_BYTES=20*1024*1024;
 const clone=x=>JSON.parse(JSON.stringify(x));
 const check=(ok,message)=>{if(!ok)throw Error(message);};
@@ -50,12 +51,12 @@ async function parse(raw,roster,projectId){
  check(file.projectId===projectId,'This backup belongs to a different Firebase project.');check(['server','device'].includes(file.source)&&text(file.createdAt,40)&&Number.isFinite(Date.parse(file.createdAt)),'Invalid backup metadata.');
  const {checksum,...body}=file;check(typeof checksum==='string'&&checksum===await digest(body),'Backup integrity check failed. The file was changed or damaged.');validatePayload(file.payload,roster);return file;
 }
-function summarize(file){const s=file.payload.state,rounds=s.liveCup.rounds,matches=rounds.flatMap(r=>r.matches);return {createdAt:file.createdAt,source:file.source,players:s.players.length,profiles:Object.values(file.payload.profiles).filter(d=>Object.keys(d).length).length,seasons:s.seasons.length,rounds:rounds.length,matches:matches.length,holes:matches.reduce((n,m)=>n+m.holes.filter(h=>h!==null).length,0),practiceRounds:rounds.filter(r=>r.test).length};}
+function summarize(file){const s=file.payload.state,rounds=s.liveCup.rounds,matches=rounds.flatMap(r=>r.matches);const totals=results.event(s,2027).totals;return {officialPointsA:totals.a,officialPointsB:totals.b,createdAt:file.createdAt,source:file.source,players:s.players.length,profiles:Object.values(file.payload.profiles).filter(d=>Object.keys(d).length).length,seasons:s.seasons.length,rounds:rounds.length,matches:matches.length,holes:matches.reduce((n,m)=>n+m.holes.filter(h=>h!==null).length,0),practiceRounds:rounds.filter(r=>r.test).length};}
 function buildState(base,shared,privateData,profiles,scores){
  const s=clone(base);s.players=clone(shared.players);s.seasons=s.seasons.filter(x=>![2026,2027].includes(x.year));s.seasons.push(clone(shared.season2026),{...clone(shared.season2027),rounds:clone(privateData.rounds)});s.activeYear=s.seasons.some(x=>x.year===base.activeYear)?base.activeYear:2027;
  s.clubhouse=clone(shared.clubhouse);s.draft2027=clone(shared.draft2027);s.handicapWeight=shared.handicapWeight;s.liveCup=clone(shared.liveCup);
  for(const p of s.players){const d=profiles[p.id]||{};p.customPhoto=d.photoData||null;p.fantasyCharacterId=d.fantasyCharacterId||null;p.strengthOrder=d.strengthOrder||null;p.manualStats=d.manualStats||null;p.handicap=d.manualStats?.handicap??null;p.handicapChecked=null;delete p.ghinNumber;}
- const overlay=new Map(scores.map(d=>[d.id,d.winner]));for(const r of s.liveCup.rounds)for(const m of r.matches)m.holes=m.holes.map((h,i)=>overlay.has(m.id+'_'+i)?overlay.get(m.id+'_'+i):h);return s;
+ const overlay=new Map(scores.map(d=>[d.id,d.winner]));s.liveCup=results.materializeCup(s.liveCup,overlay);return s;
 }
 // New match IDs isolate restored baselines from all pre-restore live-score documents.
 function restorePlan(file,roster,makeId){

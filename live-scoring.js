@@ -1,13 +1,8 @@
 /* GGA match desk. Metadata is owner-controlled; hole documents sync independently. */
 (()=>{'use strict';
 const legacyPoints={front:0,back:0,match:1};
-function contest(holes){
- const played=holes.filter(x=>['A','B','halve'].includes(x)).length;
- const lead=holes.reduce((n,x)=>n+(x==='A'?1:x==='B'?-1:0),0),remaining=holes.length-played;
- const settled=remaining===0||Math.abs(lead)>remaining;
- return {played,lead,remaining,settled,a:settled?(lead>0?1:lead<0?0:.5):0,b:settled?(lead<0?1:lead>0?0:.5):0};
-}
-function score(holes,points=legacyPoints){return [['front',holes.slice(0,9)],['back',holes.slice(9,18)],['match',holes]].filter(([key])=>points[key]>0).map(([key,h])=>{const c=contest(h);return {...c,key,points:points[key],a:c.a*points[key],b:c.b*points[key]};});}
+const results=typeof module!=='undefined'?require('./results-core.js'):window.GGA_RESULTS;
+const contest=results.contest,score=results.score;
 function predict(holes,a,b){
  const c=contest(holes),valid=x=>typeof x==='number'&&Number.isFinite(x);
  const all=[...a,...b],hcp=all.length>0&&all.every(p=>valid(p?.handicap)),rating=all.length>0&&all.every(p=>valid(p?.rating));
@@ -28,11 +23,11 @@ const panel=document.createElement('section');panel.id='live';panel.className='v
 let selectedRound='all',selectedMatch='',mode='official',busy=false,editing='';
 const uid=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join(''),points=m=>m.points||legacyPoints;
 const rounds=()=>data().rounds.filter(r=>!!r.test===(mode==='test'));
-const holes=m=>m.holes.map((h,i)=>window.GGA_LIVE_RESULTS?.has(m.id+'_'+i)?window.GGA_LIVE_RESULTS.get(m.id+'_'+i):h);
+const holes=m=>results.effectiveHoles(m,window.GGA_LIVE_RESULTS);
 const editable=(m,r)=>canScore(m,r.started,g.isOwner(),g.getUser?.()?.id)&&(!window.GGA_BACKEND_CONFIGURED||!!window.GGA_BACKEND_API?.canScore(m.id));
 const labels={front:'Front 9',back:'Back 9',match:'Overall match'};
-function commit(message){g.save();render();g.notify(message);}
-function total(rs){let a=0,b=0;for(const r of rs)for(const m of r.matches)for(const c of score(holes(m),points(m))){a+=c.a;b+=c.b;}return [a,b];}
+function commit(message){g.save();if(g.refreshResults)g.refreshResults();else render();g.notify(message);}
+function total(rs){const ids=new Set(rs.map(r=>r.id)),model=results.event(g.getState(),2027,{practice:mode==='test',overlay:window.GGA_LIVE_RESULTS});let a=0,b=0;for(const r of model.rounds)if(ids.has(r.id))for(const m of r.matches){a+=m.secured.a;b+=m.secured.b;}return [a,b];}
 const pointInputs=p=>['front','back','match'].map(k=>'<label class="form-field">'+labels[k]+' points<input name="points-'+k+'" type="number" min="0" max="100" step="0.5" value="'+p[k]+'" required></label>').join('');
 function matchForm(r,m){const size=m?.a.length||1;return '<form data-live-add="'+r.id+'" data-edit="'+(m?.id||'')+'"><h4>'+(m?'Edit matchup':'New matchup')+'</h4><div class="form-row"><label class="form-field">Match format<select name="format">'+[1,2,3,4].map(n=>'<option value="'+n+'" '+(n===size?'selected':'')+'>'+n+'v'+n+' match play</option>').join('')+'</select></label>'+['A','B'].map(s=>[0,1,2,3].map(i=>'<label class="form-field" '+(i?'data-partner="'+i+'" '+(i>=size?'hidden':''):'')+'>'+esc(team(s))+' · golfer '+(i+1)+'<select name="'+s+i+'"><option value="">Select golfer</option>'+g.getState().players.map(p=>'<option value="'+esc(p.id)+'" '+(m?.[s.toLowerCase()][i]===p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>').join('')).join('')+pointInputs(m?points(m):{front:1,back:1,match:1})+'</div><p class="hint">Ties split that contest’s points equally. Set a contest to 0 to disable it.</p>'+(m?'<fieldset style="margin:16px 0;padding:14px;border:1px solid #707887;border-radius:10px"><legend>When changing players</legend><p class="hint">Choose what happens to the current scorecard. Retained results stay with the team sides, not individual golfers. The previous lineup and scorecard are kept in history.</p><label class="form-field">Existing results<select name="lineup-policy"><option value="">Choose before changing players</option><option value="retain">Keep current results for the updated lineup</option><option value="fresh">Start fresh with an empty scorecard</option></select></label><label class="form-field">Lineup change reason<input name="lineup-reason" maxlength="500" placeholder="Substitution, corrected pairing, or new match"></label></fieldset>':'')+'<button class="btn" type="submit">'+(m?'Save matchup':'Add matchup')+'</button>'+(m?'<button type="button" class="btn btn-secondary" data-live-cancel>Cancel edit</button>':'')+'</form>';}
 function status(c){return !c.played?'Not started':c.lead===0?'All square':esc(team(c.lead>0?'A':'B'))+' '+Math.abs(c.lead)+' UP';}

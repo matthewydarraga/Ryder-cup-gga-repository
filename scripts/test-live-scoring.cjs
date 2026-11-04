@@ -19,7 +19,7 @@ const vm=require('node:vm'),fs=require('node:fs');
 let owner=true,user='a',notice='',saved=0;const handlers={},panel={addEventListener:(t,f)=>handlers[t]=f};
 const state={players:Array.from({length:13},(_,i)=>({id:i===0?'a':i===1?'b':'p'+i,name:'Player '+i})),seasons:[{year:2027,roster:{}}]};
 const g={getState:()=>state,isOwner:()=>owner,getUser:()=>({id:user}),player:id=>state.players.find(p=>p.id===id),save:()=>saved++,notify:x=>notice=x};
-const win={GGA:g};
+const win={GGA:g,GGA_RESULTS:require('../results-core.js')};
 vm.runInNewContext(fs.readFileSync(require.resolve('../live-scoring.js'),'utf8'),{window:win,document:{createElement:()=>panel,querySelector:()=>({appendChild(){}})},crypto:require('node:crypto').webcrypto,confirm:()=>true,prompt:()=> 'Renamed',FormData:class{constructor(f){this.f=f}get(k){return this.f.values[k]??null}}});
 const submit=f=>handlers.submit({preventDefault(){},target:f});
 const click=(dataset={},attributes=[])=>handlers.click({target:{closest:()=>({dataset,hasAttribute:k=>attributes.includes(k)})}});

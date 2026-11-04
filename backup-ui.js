@@ -18,12 +18,12 @@ window.GGA_EXPORT_DEVICE_RECOVERY=async()=>{
 };
 window.GGA_EXPORT_COMPLETE_BACKUP=async()=>{
  if(busy)return;if(!g.isOwner())return g.notify('Only Matthew can download a complete clubhouse backup.');controls(true);status('Reading current server records…');
- try{const file=await api().capture();download(file);const n=b.summarize(file);status('Complete server backup downloaded: '+n.players+' players, '+n.matches+' live matches and '+n.holes+' recorded holes.');}
+ try{const file=await api().capture();download(file);const n=b.summarize(file);status('Complete server backup downloaded: '+n.players+' players, '+n.matches+' live matches and '+n.holes+' recorded holes. Official secured points: '+n.officialPointsA+' – '+n.officialPointsB+' (practice excluded).');}
  catch(e){status('Backup not created: '+e.message);}finally{controls(false);}
 };
 window.GGA_PREVIEW_COMPLETE_BACKUP=async file=>{
  if(!file||busy)return;controls(true);selected=null;prepared=null;$('gga-backup-preview').hidden=true;$('gga-backup-confirm').value='';status('Checking file version and integrity…');
- try{if(!g.isOwner())throw Error('Sign in as Matthew.');if(file.size>b.MAX_BYTES)throw Error('Choose a backup smaller than 20 MB.');selected=await b.parse(await file.text(),g.getState().players,window.FIREBASE_CONFIG?.projectId||'gga-ryder-cup');prepared=await api().prepare(selected);const n=b.summarize(selected);$('gga-backup-summary').textContent=new Date(n.createdAt).toLocaleString()+' · '+n.players+' players · '+n.profiles+' saved profiles · '+n.seasons+' seasons · '+n.rounds+' live rounds ('+n.practiceRounds+' practice) · '+n.matches+' matches · '+n.holes+' recorded holes.';$('gga-backup-preview').hidden=false;status('Backup verified. Review the summary before restoring.');}
+ try{if(!g.isOwner())throw Error('Sign in as Matthew.');if(file.size>b.MAX_BYTES)throw Error('Choose a backup smaller than 20 MB.');selected=await b.parse(await file.text(),g.getState().players,window.FIREBASE_CONFIG?.projectId||'gga-ryder-cup');prepared=await api().prepare(selected);const n=b.summarize(selected);$('gga-backup-summary').textContent=new Date(n.createdAt).toLocaleString()+' · '+n.players+' players · '+n.profiles+' saved profiles · '+n.seasons+' seasons · '+n.rounds+' live rounds ('+n.practiceRounds+' practice) · '+n.matches+' matches · '+n.holes+' recorded holes. Official secured points: '+n.officialPointsA+' – '+n.officialPointsB+' (practice excluded).';$('gga-backup-preview').hidden=false;status('Backup verified. Review the summary before restoring.');}
  catch(e){selected=null;prepared=null;status('Restore unavailable: '+e.message);}finally{controls(false);}
 };
 $('export-data').addEventListener('click',()=>window.GGA_EXPORT_COMPLETE_BACKUP());

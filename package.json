@@ -2,7 +2,7 @@
   "name": "gga-ryder-cup-checks",
   "private": true,
   "scripts": {
-    "test": "node scripts/verify-site.cjs && node scripts/test-live-scoring.cjs && node scripts/test-spark-adapter.cjs && node scripts/test-manual-stats.cjs && node scripts/test-backups.cjs && node scripts/test-lineups.cjs",
+    "test": "node scripts/verify-site.cjs && node scripts/test-live-scoring.cjs && node scripts/test-spark-adapter.cjs && node scripts/test-manual-stats.cjs && node scripts/test-backups.cjs && node scripts/test-lineups.cjs && node scripts/test-results.cjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-gga-spark \"node scripts/test-firestore-rules.cjs && node scripts/test-backup-rules.cjs && node scripts/test-lineup-rules.cjs\""
   },
   "devDependencies": {

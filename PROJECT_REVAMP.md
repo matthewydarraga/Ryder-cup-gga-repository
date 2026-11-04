@@ -21,7 +21,7 @@ Browser QA: owner backup controls render in the local development preview. A pro
 
 ## Step 2 — Safe lineup changes and substitutions
 
-Implemented on `codex/project-revamp-step-2`.
+Deployed through PR #6 (merge `ebf941c02884981dd690354535de5971f18fd2d1`).
 
 - Changing players or team size requires a deliberate keep-results/fresh-scorecard choice, a reason, and a confirmation. Point-only edits retain their existing workflow.
 - Each change stores the previous lineup, point settings and full effective scorecard, the new lineup, reason, owner identity, recorded time and revision. The match view includes a read-only history. Historical results do not count twice in standings.
@@ -32,13 +32,28 @@ Implemented on `codex/project-revamp-step-2`.
 
 Validation: `npm test` covers all team sizes, required decisions/reasons, cancellation, owner gating, retained/cleared results, fresh scorecards, history rendering and backup round trips. `npm run test:rules` additionally injects a concurrent player correction during a real emulator transaction, verifies retries preserve it, checks old/new participant permissions and stale-owner rejection. Browser QA made a retained-results substitution in the local mock and opened its recorded previous scorecard. Production owner substitution has not been exercised.
 
+## Step 3 — Unified results and player statistics
+
+Implemented on `codex/project-revamp-step-3`.
+
+- `results-core.js` is the shared read-only scoring model for Live, player statistics, player cards/profiles, prior-year draft rankings, 2026 recap records and complete-backup materialization/summary.
+- 2027 official results use live matchups only. The old independent 2027 owner scoring editor now directs the owner to Live; its legacy data remains preserved in backups. Practice rounds are explicitly filtered out of official records. Archived substitution snapshots do not add appearances or points; a retained-results substitution credits the current official lineup.
+- All server hole overrides, including explicit clears, flow through the same effective scorecard. Confirmed local/remote score changes refresh all result consumers without writing derived totals back to Firestore. A focused profile input is not rebuilt by a score refresh.
+- Profiles and statistics follow the selected year. Profiles show pending full matches, decided-match win rates (ties count half), split player point credit and decided credit. Partial matches do not count as full-match wins or losses.
+- Team points are divided among teammates for player credit so a team result is not counted multiple times. Displayed credit is rounded to three decimal places. Official team totals retain their exact configured point values.
+- The historical 2026 scoring weights and seeded records/margins are preserved. Missing nine-hole cards and team assignments are not fabricated. Manual tied matches now consistently credit a half result. The recorded handicap-benchmark loss remains a distinct historical case.
+- 2027 draft rankings continue to use 2026 results and current manually entered handicaps; current/practice 2027 scoring does not change those prior-year results.
+- No rule, billing, service or production-data migration is required. Final score locking remains the later finalization step.
+
+Validation: `npm test` includes golden 2026 records, original margins, benchmark/tie handling, 1v1–4v4 point allocation, pending/corrected/cleared results, paused rounds, practice/history exclusion, prior-year ranks, backup round trips, profile markup, and remote score refresh without write echo. Existing emulator permission/backup/substitution checks pass. Local browser QA created a disposable official-results round: five hole wins secured one front-nine point; Live, statistics and Matthew's profile agreed while the overall match remained in progress. Production scoring was not modified during testing.
+
 ## Next step
 
-Step 3: unify results/statistics so live standings, player records, profiles, recaps and backups use the same scoring calculations. Preserve the intended prior-year basis for draft rankings and isolate practice results from official records.
+Step 4: durable offline score entry. Persist pending edits on the phone; show pending/synced/conflict states; replay safely after reconnecting; never silently overwrite a newer result. Preserve the shared results model, existing backups and substitution history.
 
 ## Remaining roadmap
 
-Phase 1: unified results/statistics; durable offline scoring; finalization states; score history and undo; form preservation; consistent year/event selection; session/status copy; permission regression tests.
+Phase 1 remaining: durable offline scoring; finalization states; score history and undo; form preservation; consistent year/event selection; session/status copy; permission regression tests.
 
 Phase 2: My Match home, sticky team standings and winning target, round/day filters, compact match cards and final margins, one-hole scoring, explicit playing formats, separate owner controls, five bottom destinations, clear strengths/statistics, accessible mobile layouts and direct match links.
 
