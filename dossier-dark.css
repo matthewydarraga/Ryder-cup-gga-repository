@@ -175,3 +175,10 @@ body{background:#0b0c13!important;color:#f3f3fa!important}
  #players .player-card .gga-champion-badge{display:none!important}
  #players .player-card .gga-champion-count{display:block;margin-top:6px;padding:3px 4px;border-radius:5px;background:#3b321b;color:#f7d77b;font-size:9px;font-weight:800;line-height:1.3;white-space:nowrap}
 }
+
+/* Show the original 2026 recap photograph without filters or face cropping. */
+#history .gga-history-cover{height:auto!important;background:#10121a;overflow:hidden}
+#history .gga-history-cover img{display:block;width:100%;height:auto!important;max-height:720px;object-fit:contain!important;object-position:center!important;filter:none!important}
+#history .gga-history-cover>div{position:static!important;padding:20px 24px;background:#171924}
+#history .gga-history-cover h3{margin:6px 0}
+.gga-promo-art img{object-position:center 70%!important}

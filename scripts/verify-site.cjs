@@ -3,7 +3,7 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const files=['draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-group.webp','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules'];
+const files=['draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-original-group.jpeg','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules'];
 for(const path of files)assert.ok(fs.existsSync(path),'Required file missing: '+path);
 const html=fs.readFileSync('index.html','utf8');
 for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','draft-order-summary','login-email']){
@@ -11,7 +11,7 @@ for(const id of ['home','history','draft','players','forge','rankings','stats','
 }
 for(const name of ['Matthew Ydarraga','Michael Rodriguez','Jake Norris','Brandon Durman','Will Parker','Ryan Higgins','Jordan McNeely','Reid Mixon','Zach Cousar','Jack Abraham','Peyton Braswell','Nate Cox','Kody Russey'])
  assert.ok(html.includes(name),'Missing roster member: '+name);
-assert.ok(html.includes('gga-2026-group.webp'),'Missing 2026 group photo reference');
+assert.ok(html.includes('gga-2026-original-group.jpeg'),'Missing 2026 group photo reference');
 const scriptRegex=/<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 let matches=[...html.matchAll(scriptRegex)],inline=0;
 for(const [i,m] of matches.entries()){
