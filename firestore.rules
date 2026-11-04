@@ -121,6 +121,43 @@ service cloud.firestore {
    allow update: if owner() && validPrivate(request.resource.data) && request.resource.data.revision==resource.data.revision+1;
    allow delete: if false;
   }
+  // liveMatches/{id}: owner-published participant lists, round state and test flag.
+  // liveScores/{matchId}_{hole}: one result per hole; no account or private data.
+  function validLiveMatch(d){
+   return d.keys().hasAll(['a','b','roundId','started','test','active','updatedAt'])
+    && d.keys().hasOnly(['a','b','roundId','started','test','active','updatedAt'])
+    && d.a is list && d.b is list && d.a.size()>=1 && d.a.size()<=4 && d.a.size()==d.b.size()
+    && d.a.hasOnly(roster().values()) && d.b.hasOnly(roster().values())
+    && d.a.concat(d.b).toSet().size()==d.a.size()+d.b.size()
+    && d.roundId is string && d.roundId.size()>0 && d.roundId.size()<=64
+    && d.started is bool && d.test is bool && d.active is bool && d.updatedAt==request.time;
+  }
+  function validLiveScore(id,d){
+   return d.keys().hasAll(['matchId','hole','winner','updatedAt'])
+    && d.keys().hasOnly(['matchId','hole','winner','updatedAt'])
+    && d.matchId is string && d.matchId.size()>0 && d.matchId.size()<=64
+    && d.hole is int && d.hole>=0 && d.hole<=17
+    && id==d.matchId+'_'+string(d.hole)
+    && d.winner in [null,'A','B','halve'] && d.updatedAt==request.time;
+  }
+  function scoringParticipant(d){
+   let m=get(/databases/$(database)/documents/liveMatches/$(d.matchId)).data;
+   let p=get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId;
+   return active() && m.active && m.started && (owner() || p in m.a || p in m.b);
+  }
+  match /liveMatches/{id} {
+   allow read: if active();
+   allow create,update: if owner() && id.size()>0 && id.size()<=64 && validLiveMatch(request.resource.data);
+   allow delete: if false;
+  }
+  match /liveScores/{id} {
+   allow read: if active();
+   allow create: if validLiveScore(id,request.resource.data) && scoringParticipant(request.resource.data);
+   allow update: if validLiveScore(id,request.resource.data)
+    && request.resource.data.matchId==resource.data.matchId && request.resource.data.hole==resource.data.hole
+    && scoringParticipant(request.resource.data);
+   allow delete: if false;
+  }
   match /profiles/{playerId} {
    allow read: if active();
    allow create,update: if (owner()||self(playerId)) && playerId in roster().values() && validProfile(request.resource.data);
@@ -129,6 +166,3 @@ service cloud.firestore {
   match /{document=**} {allow read,write: if false;}
  }
 }
-
-
-

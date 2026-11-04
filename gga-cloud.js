@@ -16,12 +16,14 @@ else try{
  const s=gga.getState(),profiles=new Map();
  const rosterPhotos=new Map(s.players.map(p=>[p.id,{officialPhoto:p.officialPhoto,officialPhotoFallback:p.officialPhotoFallback}]));
  let member=null,ready=false,suppress=false,revision=null,dirty=false,saving=false,blocked=false,timer=null,epoch=0,changes=0;
+ let publishedMatches=new Map(),scoresReady=false;
+ window.GGA_LIVE_RESULTS=new Map();
  let stops=[],lastContent='',pendingBackup=null,lastAuthError='',openProfileAfterLogin=false;
  const errorText=e=>String(e?.message||e).slice(0,220);
  const ownerAllowed=()=>member?.role==='owner'&&member?.username==='matthew.ydarraga'&&auth.currentUser&&ready&&!blocked;
  function render(){const prev=suppress;suppress=true;try{gga.render();gga.save();}finally{suppress=prev;}}
  function authorize(){window.GGA_BACKEND_AUTHORIZED=!!ownerAllowed();}
- function stop(){clearTimeout(timer);stops.forEach(f=>f());stops=[];member=null;ready=false;dirty=false;revision=null;blocked=false;profiles.clear();authorize();gga.setSignedIn('');}
+ function stop(){scoresReady=false;window.GGA_LIVE_RESULTS.clear();publishedMatches.clear();clearTimeout(timer);stops.forEach(f=>f());stops=[];member=null;ready=false;dirty=false;revision=null;blocked=false;profiles.clear();authorize();gga.setSignedIn('');}
  function fail(e){
   blocked=true;authorize();clearTimeout(timer);announce('SYNC STOPPED · '+errorText(e)+' · Export a backup, then reload to receive the server copy.','error');
   const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-tiny';button.textContent='Download local backup';button.addEventListener('click',()=>gga.exportFile());$('#gga-cloud-state').append(button);gga.render();
@@ -44,8 +46,13 @@ else try{
    Object.assign(s.seasons.find(x=>x.year===2026),d.season2026);
    Object.assign(s.seasons.find(x=>x.year===2027),d.season2027,{rounds:privateData?.rounds||[]});
    s.clubhouse={...d.clubhouse};Object.assign(s.draft2027,d.draft2027);s.draft2027.picks=[...d.draft2027.picks];
-   s.liveCup=d.liveCup;s.handicapWeight=d.handicapWeight;revision=d.revision;lastContent=JSON.stringify(content());render();
+   s.liveCup=d.liveCup;publishedMatches=matchMetadata(d.liveCup);s.handicapWeight=d.handicapWeight;revision=d.revision;lastContent=JSON.stringify(content());render();
   }finally{suppress=false;}
+ }
+ function matchMetadata(cup){
+  const result=new Map();
+  for(const r of cup?.rounds||[])for(const m of r.matches)result.set(m.id,{a:m.a,b:m.b,roundId:r.id,started:!!r.started,test:!!r.test,active:true});
+  return result;
  }
  async function publish(initial=false){
   if(!ownerAllowed()||saving||(!initial&&!dirty))return;
@@ -59,9 +66,12 @@ else try{
     const {privateRounds,...shared}=payload,next=(base??0)+1;
     tx.set(publicRef,{...shared,revision:next,updatedAt:fireMod.serverTimestamp()});
     tx.set(privateRef,{year:2027,rounds:privateRounds,revision:next,updatedAt:fireMod.serverTimestamp()});
+    const nextMatches=matchMetadata(payload.liveCup);
+    for(const [id,meta]of nextMatches)tx.set(fireMod.doc(db,'liveMatches',id),{...meta,updatedAt:fireMod.serverTimestamp()});
+    for(const [id,meta]of publishedMatches)if(!nextMatches.has(id))tx.set(fireMod.doc(db,'liveMatches',id),{...meta,active:false,updatedAt:fireMod.serverTimestamp()});
    });
    if(ticket!==epoch)return;
-   revision=(base??0)+1;lastContent=JSON.stringify(payload);dirty=changes!==serial;pendingBackup=null;gga.render();
+   publishedMatches=matchMetadata(payload.liveCup);revision=(base??0)+1;lastContent=JSON.stringify(payload);dirty=changes!==serial;pendingBackup=null;gga.render();
    announce('SERVER CONFIRMED · Clubhouse and scoring saved.','live');
   }catch(e){if(ticket===epoch)fail(e);}
   finally{saving=false;if(dirty&&!blocked&&ticket===epoch){clearTimeout(timer);timer=setTimeout(()=>publish(),650);}}
@@ -69,6 +79,24 @@ else try{
  window.GGA_AFTER_SAVE=()=>{
   if(suppress||!ownerAllowed()||revision===null||JSON.stringify(content())===lastContent)return;
   dirty=true;changes++;announce('UNSYNCED · Owner changes waiting to save.','loading');clearTimeout(timer);timer=setTimeout(()=>publish(),650);
+ };
+ const canScore=id=>{
+  const r=s.liveCup?.rounds.find(r=>r.matches.some(m=>m.id===id)),m=r?.matches.find(m=>m.id===id);
+  return !!(member&&ready&&scoresReady&&!blocked&&!dirty&&!saving&&r?.started&&m&&(member.role==='owner'||[...m.a,...m.b].includes(member.playerId)));
+ };
+ window.GGA_SAVE_HOLE=async(id,hole,winner,expected)=>{
+  if(!canScore(id)||!Number.isInteger(hole)||hole<0||hole>17||![null,'A','B','halve'].includes(winner))throw Error('This match is not ready for scoring. Wait for setup to sync.');
+  const ticket=epoch,playerId=member.playerId,isOwner=member.role==='owner',scoreRef=fireMod.doc(db,'liveScores',id+'_'+hole);
+  await fireMod.runTransaction(db,async tx=>{
+   const meta=await tx.get(fireMod.doc(db,'liveMatches',id)),existing=await tx.get(scoreRef);
+   if(ticket!==epoch||!meta.exists())throw Error('Matthew must save the matchup setup before scoring.');
+   const m=meta.data();if(!m.active||!m.started||(!isOwner&&![...m.a,...m.b].includes(playerId)))throw Error('You can only score your own active match.');
+   const baseline=s.liveCup.rounds.flatMap(r=>r.matches).find(m=>m.id===id)?.holes[hole]??null;
+   if((existing.exists()?existing.data().winner:baseline)!==expected)throw Error('Someone just changed this hole. Review the latest result and try again.');
+   tx.set(scoreRef,{matchId:id,hole,winner,updatedAt:fireMod.serverTimestamp()});
+  });
+  if(ticket!==epoch)return;
+  window.GGA_LIVE_RESULTS.set(id+'_'+hole,winner);window.GGA_LIVE?.render();
  };
  window.GGA_CLOUD_SIGNOUT=async()=>{
   if(dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
@@ -171,16 +199,19 @@ else try{
      gga.closeLogin();if(openProfileAfterLogin){openProfileAfterLogin=false;gga.openMyProfile?.();}
     }catch(e){fail(e);}
    },fail));
+   stops.push(fireMod.onSnapshot(fireMod.collection(db,'liveScores'),{includeMetadataChanges:true},snap=>{
+    if(ticket!==epoch||snap.metadata?.hasPendingWrites)return;
+    if(snap.metadata?.fromCache){scoresReady=false;window.GGA_LIVE?.render();return;}
+    for(const c of snap.docChanges()){if(c.type==='removed')window.GGA_LIVE_RESULTS.delete(c.doc.id);else window.GGA_LIVE_RESULTS.set(c.doc.id,c.doc.data().winner);}
+    scoresReady=true;window.GGA_LIVE?.render();
+   },e=>{scoresReady=false;announce('SCORING NOT CONNECTED · '+errorText(e)+' · Match permissions must be published in Firebase.','error');window.GGA_LIVE?.render();}));
    stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),{includeMetadataChanges:true},snap=>{
     if(ticket!==epoch||snap.metadata?.hasPendingWrites)return;
     for(const c of snap.docChanges()){if(c.type==='removed')profiles.delete(c.doc.id);else profiles.set(c.doc.id,c.doc.data());const p=s.players.find(p=>p.id===c.doc.id);if(p)applyProfile(p);}render();
    },fail));
   }catch(e){if(ticket===epoch){lastAuthError='ACCOUNT NOT AUTHORIZED · '+errorText(e);stop();$('#login-mode-note').textContent=lastAuthError;announce(lastAuthError,'error');await authMod.signOut(auth);}}
  });
- window.GGA_BACKEND_API={ownerAllowed,canPublishFirst:()=>ownerAllowed()&&revision===null};window.GGA_LOGIN_READY=true;loginMode();
+ window.GGA_BACKEND_API={ownerAllowed,canScore,canPublishFirst:()=>ownerAllowed()&&revision===null};window.GGA_LOGIN_READY=true;loginMode();
  window.addEventListener('offline',()=>announce('OFFLINE · Changes are not confirmed. Reconnect before editing.','preview'));
  window.addEventListener('beforeunload',e=>{if(dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
 }catch(e){const message='FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200);announce(message,'error');const note=$('#login-mode-note');if(note)note.textContent=message;}
-
-
-

@@ -1,70 +1,100 @@
-/* Each pairing plays for exactly one Ryder Cup point. */
+/* GGA match desk. Metadata is owner-controlled; hole documents sync independently. */
 (()=>{'use strict';
+const legacyPoints={front:0,back:0,match:1};
 function contest(holes){
  const played=holes.filter(x=>['A','B','halve'].includes(x)).length;
  const lead=holes.reduce((n,x)=>n+(x==='A'?1:x==='B'?-1:0),0),remaining=holes.length-played;
  const settled=remaining===0||Math.abs(lead)>remaining;
  return {played,lead,remaining,settled,a:settled?(lead>0?1:lead<0?0:.5):0,b:settled?(lead<0?1:lead>0?0:.5):0};
 }
-function score(holes){return [contest(holes)];}
-// Illustrative model: average team HCP (preferred), otherwise complete GGA ratings.
-// Fixed 30% hole tie assumption; independent remaining holes, not calibrated betting odds.
+function score(holes,points=legacyPoints){return [['front',holes.slice(0,9)],['back',holes.slice(9,18)],['match',holes]].filter(([key])=>points[key]>0).map(([key,h])=>{const c=contest(h);return {...c,key,points:points[key],a:c.a*points[key],b:c.b*points[key]};});}
 function predict(holes,a,b){
  const c=contest(holes),valid=x=>typeof x==='number'&&Number.isFinite(x);
  const all=[...a,...b],hcp=all.length>0&&all.every(p=>valid(p?.handicap)),rating=all.length>0&&all.every(p=>valid(p?.rating));
  const avg=(xs,key)=>xs.reduce((n,p)=>n+p[key],0)/xs.length;
  const edge=a.length&&b.length?(hcp?(avg(b,'handicap')-avg(a,'handicap'))/18:rating?(avg(a,'rating')-avg(b,'rating'))/40:0):0;
- const win=.7/(1+Math.exp(-Math.max(-2,Math.min(2,edge))));
- let dist=new Map([[c.lead,1]]);
+ const win=.7/(1+Math.exp(-Math.max(-2,Math.min(2,edge))));let dist=new Map([[c.lead,1]]);
  if(!c.settled)for(let i=0;i<c.remaining;i++){const next=new Map();for(const [lead,p]of dist)for(const [delta,q]of [[1,win],[0,.3],[-1,.7-win]])next.set(lead+delta,(next.get(lead+delta)||0)+p*q);dist=next;}
- let A=0,B=0,tie=0;for(const [lead,p]of dist){if(lead>0)A+=p;else if(lead<0)B+=p;else tie+=p;}
- return {a:A,b:B,tie,basis:hcp?'average Handicap Index':rating?'average GGA rating':'score only — ratings incomplete',settled:c.settled};
+ let A=0,B=0,tie=0;for(const [lead,p]of dist){if(lead>0)A+=p;else if(lead<0)B+=p;else tie+=p;}return {a:A,b:B,tie,basis:hcp?'average Handicap Index':rating?'average GGA rating':'score only — ratings incomplete',settled:c.settled};
 }
-if(typeof module!=='undefined')module.exports={contest,score,predict};
+function canScore(m,started,owner,playerId){return !!started&&(owner||[...m.a,...m.b].includes(playerId));}
+if(typeof module!=='undefined')module.exports={contest,score,predict,canScore};
 if(typeof window==='undefined'||!window.GGA)return;
 const g=window.GGA,esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const data=()=>{const s=g.getState();return s.liveCup||(s.liveCup={year:2027,rounds:[]});};
 const team=s=>g.getState().seasons.find(x=>x.year===2027)?.teams?.[s]?.name||'Team '+s;
 const names=ids=>ids.map(id=>g.player(id)?.name||'Unknown golfer').join(' & ');
 const panel=document.createElement('section');panel.id='live';panel.className='view';document.querySelector('main.shell').appendChild(panel);
-const uid=()=>crypto.randomUUID();
+let selectedRound='all',selectedMatch='',mode='official',busy=false,editing='';
+const uid=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join(''),points=m=>m.points||legacyPoints;
+const rounds=()=>data().rounds.filter(r=>!!r.test===(mode==='test'));
+const holes=m=>m.holes.map((h,i)=>window.GGA_LIVE_RESULTS?.has(m.id+'_'+i)?window.GGA_LIVE_RESULTS.get(m.id+'_'+i):h);
+const editable=(m,r)=>canScore(m,r.started,g.isOwner(),g.getUser?.()?.id)&&(!window.GGA_BACKEND_CONFIGURED||!!window.GGA_BACKEND_API?.canScore(m.id));
+const labels={front:'Front 9',back:'Back 9',match:'Overall match'};
 function commit(message){g.save();render();g.notify(message);}
+function total(rs){let a=0,b=0;for(const r of rs)for(const m of r.matches)for(const c of score(holes(m),points(m))){a+=c.a;b+=c.b;}return [a,b];}
+const pointInputs=p=>['front','back','match'].map(k=>'<label class="form-field">'+labels[k]+' points<input name="points-'+k+'" type="number" min="0" max="100" step="0.5" value="'+p[k]+'" required></label>').join('');
+function matchForm(r,m){const size=m?.a.length||1;return '<form data-live-add="'+r.id+'" data-edit="'+(m?.id||'')+'"><h4>'+(m?'Edit matchup':'New matchup')+'</h4><div class="form-row"><label class="form-field">Match format<select name="format">'+[1,2,3,4].map(n=>'<option value="'+n+'" '+(n===size?'selected':'')+'>'+n+'v'+n+' match play</option>').join('')+'</select></label>'+['A','B'].map(s=>[0,1,2,3].map(i=>'<label class="form-field" '+(i?'data-partner="'+i+'" '+(i>=size?'hidden':''):'')+'>'+esc(team(s))+' · golfer '+(i+1)+'<select name="'+s+i+'"><option value="">Select golfer</option>'+g.getState().players.map(p=>'<option value="'+esc(p.id)+'" '+(m?.[s.toLowerCase()][i]===p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>').join('')).join('')+pointInputs(m?points(m):{front:1,back:1,match:1})+'</div><p class="hint">Ties split that contest’s points equally. Set a contest to 0 to disable it.</p><button class="btn" type="submit">'+(m?'Save matchup':'Add matchup')+'</button>'+(m?'<button type="button" class="btn btn-secondary" data-live-cancel>Cancel edit</button>':'')+'</form>';}
+function status(c){return !c.played?'Not started':c.lead===0?'All square':esc(team(c.lead>0?'A':'B'))+' '+Math.abs(c.lead)+' UP';}
+function card(r,m,detail){const hs=holes(m),results=score(hs,points(m)),can=editable(m,r),c=contest(hs);return '<div class="live-match"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p>'+m.a.length+'v'+m.b.length+' · '+c.played+'/18 holes recorded · '+Object.values(points(m)).reduce((a,b)=>a+b,0)+' points available</p><div class="live-points">'+results.map(c=>'<div><small>'+labels[c.key]+' · '+c.points+' '+(c.points===1?'point':'points')+'</small><strong>'+(c.settled?c.a+' – '+c.b:status(c))+'</strong><small>'+(c.settled?'Points secured':'In progress')+'</small></div>').join('')+'</div><p class="hint">Holes won: '+esc(team('A'))+' '+hs.filter(h=>h==='A').length+' · '+esc(team('B'))+' '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+
+ (!detail?'<button class="btn btn-secondary" data-live-open="'+m.id+'">Open match & scorecard</button>':'<p class="hint">'+(can?'You can record and correct results for this match.':!r.started?'Matthew must start this round before scoring.':'Only participants in this matchup and Matthew can edit results.')+'</p><div class="live-holes">'+hs.map((h,i)=>'<label>Hole '+(i+1)+(can?'<select '+(busy?'disabled':'')+' data-live-round="'+r.id+'" data-live-match="'+m.id+'" data-live-hole="'+i+'" aria-label="Hole '+(i+1)+' winner">'+[['','Not played'],['A',team('A')],['B',team('B')],['halve','Tied']].map(([v,l])=>'<option value="'+v+'" '+((h||'')===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select>':'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong>')+'</label>').join('')+'</div>')+
+ (g.isOwner()?'<div class="flex"><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></div>':'')+'</div>';}
 function render(){
- const d=data(),owner=g.isOwner();let totalA=0,totalB=0;
- for(const r of d.rounds)if(r.started)for(const m of r.matches)for(const c of score(m.holes)){totalA+=c.a;totalB+=c.b;}
- panel.innerHTML='<div class="panel panel-pad"><div class="kicker">2027 Ryder Cup</div><h2>Live Scoring</h2><p>Each pairing versus pairing is worth 1 Ryder Cup point total. Tied contests award ½ point to each side.</p><div class="live-total"><strong>'+esc(team('A'))+'<br>'+totalA+'</strong><span>POINTS SECURED</span><strong>'+esc(team('B'))+'<br>'+totalB+'</strong></div><p class="hint">'+(window.GGA_BACKEND_CONFIGURED?'Shared updates use the clubhouse connection status above.':'Device-only preview: scores are saved here; other devices will not receive them until cloud sync is connected.')+'</p><p class="hint">Record the agreed hole winner after applying your agreed handicap and team-format rules. No strokes or handicap allowances are calculated here. A clinched match awards its single point; you can correct any recorded hole. Predictions are illustrative, not calibrated odds or handicap stroke calculations.</p></div>'+
- (owner?'<form id="live-round-form" class="panel panel-pad"><h3>Matthew’s matchup desk</h3><label class="form-field">Round name<input name="title" maxlength="70" required placeholder="Saturday morning"></label><button class="btn" type="submit">Create round</button></form>':'<p class="hint">Matthew creates matchups and records hole results.</p>')+
- (!d.rounds.length?'<div class="panel panel-pad"><h3>Waiting for the opening tee shot</h3><p>Matchups will appear here when Matthew sets up the rounds.</p></div>':'')+
- d.rounds.map(r=>'<article class="panel panel-pad live-round"><h3>'+esc(r.title)+'</h3><p>'+(!r.started?'Setup':r.matches.length&&r.matches.every(m=>contest(m.holes).settled)?'Round complete':'In progress')+'</p>'+
- (owner&&!r.started?'<form data-live-add="'+r.id+'"><div class="form-row"><label class="form-field">Match format<select name="format"><option value="1">1v1 match play</option><option value="2">2v2 match play</option><option value="3">3v3 match play</option><option value="4">4v4 match play</option></select></label>'+['A','B'].map(s=>[0,1,2,3].map(i=>'<label class="form-field" '+(i?'data-partner="'+i+'" hidden':'')+'>'+esc(team(s))+' · golfer '+(i+1)+'<select name="'+s+i+'"><option value="">Select golfer</option>'+g.getState().players.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('')+'</select></label>').join('')).join('')+'</div><button class="btn" type="submit">Add matchup</button></form><button class="btn btn-gold" data-live-start="'+r.id+'" '+(!r.matches.length?'disabled':'')+'>Start round</button>':'')+
- r.matches.map(m=>{const results=score(m.holes);const ratings=g.ranks?g.ranks().arr:[];const rated=id=>({...g.player(id),rating:ratings.find(p=>p.id===id)?.rating});const prediction=predict(m.holes,m.a.map(rated),m.b.map(rated));return '<div class="live-match"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p>'+m.a.length+'v'+m.b.length+' · '+m.holes.filter(h=>h!==null).length+'/18 holes recorded</p><div class="live-points">'+results.map((c,i)=>'<div><small>'+'Match · 1 point'+'</small><strong>'+(c.settled?c.a+' – '+c.b:!c.played?'Not started':c.lead===0?'All square':esc(team(c.lead>0?'A':'B'))+' '+Math.abs(c.lead)+' UP')+'</strong><small>'+(c.settled?'Point awarded':'Point pending')+'</small></div>').join('')+'</div><p class="hint" aria-live="polite">'+(prediction.settled?'Result':'Estimated chances')+' · '+esc(team('A'))+' '+(prediction.a*100).toFixed(1)+'% · Tie '+(prediction.tie*100).toFixed(1)+'% · '+esc(team('B'))+' '+(prediction.b*100).toFixed(1)+'%<br>Based on current score and '+esc(prediction.basis)+'. Assumes 30% tied holes; team averages do not model scramble/best-ball advantages.</p><div class="live-holes">'+m.holes.map((h,i)=>'<label>Hole '+(i+1)+(owner&&r.started?'<select data-live-round="'+r.id+'" data-live-match="'+m.id+'" data-live-hole="'+i+'" aria-label="Hole '+(i+1)+' winner">'+[['','Not played'],['A',team('A')],['B',team('B')],['halve','Tied']].map(([v,l])=>'<option value="'+v+'" '+((h||'')===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select>':'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong>')+'</label>').join('')+'</div>'+(owner&&!r.started?'<button class="btn btn-secondary" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button>':'')+'</div>';}).join('')+'</article>').join('');
+ const owner=g.isOwner(),rs=rounds();if(selectedRound!=='all'&&!rs.some(r=>r.id===selectedRound))selectedRound='all';
+ const shown=rs.filter(r=>selectedRound==='all'||r.id===selectedRound),[a,b]=total(rs),[ra,rb]=total(shown);
+ const focus=rs.flatMap(r=>r.matches.map(m=>({r,m}))).find(x=>x.m.id===selectedMatch);if(!focus)selectedMatch='';
+ panel.innerHTML='<div class="panel panel-pad"><div class="kicker">2027 Ryder Cup'+(mode==='test'?' · PRACTICE ONLY':'')+'</div><h2>Live Scoring</h2><div class="flex"><button class="btn '+(mode==='official'?'btn-gold':'btn-secondary')+'" data-live-mode="official">Official Cup</button><button class="btn '+(mode==='test'?'btn-gold':'btn-secondary')+'" data-live-mode="test">Mock 2027 test</button></div><p>'+(mode==='test'?'Practice scores are separate from the official Cup.':'Custom points for the front 9, back 9 and overall match. Ties split the points.')+'</p><div class="live-total"><strong>'+esc(team('A'))+'<br>'+a+'</strong><span>POINTS SECURED</span><strong>'+esc(team('B'))+'<br>'+b+'</strong></div><p class="hint">'+(window.GGA_BACKEND_CONFIGURED?'Wait for server confirmation after each change.':'Device-only preview — changes do not sync.')+' Record agreed hole winners after your handicap and format rules; strokes are not calculated here.</p></div>'+
+ (owner?'<form id="live-round-form" class="panel panel-pad"><h3>Matthew’s matchup desk</h3><label class="form-field">Round name<input name="title" maxlength="70" required placeholder="Saturday morning"></label><label class="form-field">Date<input name="date" type="date"></label><button class="btn" type="submit">Create '+(mode==='test'?'practice ':'')+'round</button>'+(mode==='test'?'<button class="btn btn-secondary" type="button" data-live-mock>Create mock 2027 tournament</button>':'')+'</form>':'')+
+ '<div class="panel panel-pad"><label class="form-field">Round / day<select id="live-filter"><option value="all">All rounds</option>'+rs.map(r=>'<option value="'+r.id+'" '+(selectedRound===r.id?'selected':'')+'>'+esc((r.date?r.date+' · ':'')+r.title)+'</option>').join('')+'</select></label>'+(selectedRound!=='all'?'<p>Selected round points: '+ra+' – '+rb+'</p>':'')+(focus?'<button class="btn btn-secondary" data-live-overview>← All matches</button>':'')+'</div>'+
+ (!rs.length?'<div class="panel panel-pad"><h3>'+(mode==='test'?'Ready for a test run':'Waiting for the opening tee shot')+'</h3><p>'+(owner?'Create a round'+(mode==='test'?' or generate the mock tournament.':'.'):'Matthew will set up the matchups.')+'</p></div>':'')+
+ (focus?'<article class="panel panel-pad"><h3>'+esc(focus.r.title)+'</h3>'+card(focus.r,focus.m,true)+(editing===focus.m.id?matchForm(focus.r,focus.m):'')+'</article>':shown.map(r=>'<article class="panel panel-pad live-round"><h3>'+esc(r.title)+'</h3><p>'+esc(r.date||'')+' · '+(r.started?'Round open for scoring':'Setup')+' · Round points '+total([r]).join(' – ')+'</p>'+(owner?'<div class="flex"><button class="btn btn-gold" data-live-start="'+r.id+'" '+(!r.matches.length?'disabled':'')+'>'+(r.started?'Pause round':'Start round')+'</button><button class="btn btn-secondary" data-live-rename="'+r.id+'">Rename round</button><button class="btn btn-danger" data-live-delete-round="'+r.id+'">Remove round</button></div>'+(!r.started?matchForm(r):''):'')+r.matches.map(m=>card(r,m,false)+(editing===m.id?matchForm(r,m):'')).join('')+'</article>').join(''));
 }
 panel.addEventListener('submit',e=>{
  e.preventDefault();if(!g.isOwner())return;const f=e.target,v=new FormData(f);
- if(f.id==='live-round-form'){const title=String(v.get('title')||'').trim();if(!title)return;if(data().rounds.length>=30)return g.notify('Maximum 30 rounds. Export a backup before reorganizing.');data().rounds.push({id:uid(),title,started:false,matches:[]});commit('Round created.');return;}
- const r=data().rounds.find(r=>r.id===f.dataset.liveAdd);if(!r||r.started)return;
+ if(f.id==='live-round-form'){const title=String(v.get('title')||'').trim();if(!title)return;if(data().rounds.length>=30)return g.notify('Maximum 30 rounds.');data().rounds.push({id:uid(),title,date:String(v.get('date')||''),test:mode==='test',started:false,matches:[]});commit('Round created.');return;}
+ const r=data().rounds.find(r=>r.id===f.dataset.liveAdd);if(!r)return;
  const size=Number(v.get('format'));if(![1,2,3,4].includes(size))return;
- const a=Array.from({length:size},(_,i)=>v.get('A'+i)),b=Array.from({length:size},(_,i)=>v.get('B'+i)),ids=[...a,...b];
+ const a=Array.from({length:size},(_,i)=>v.get('A'+i)),b=Array.from({length:size},(_,i)=>v.get('B'+i)),ids=[...a,...b],p=Object.fromEntries(['front','back','match'].map(k=>[k,Number(v.get('points-'+k))]));
+ if(Object.values(p).some(n=>!Number.isFinite(n)||n<0||n>100||n*2%1)||!Object.values(p).some(n=>n>0))return g.notify('Use points from 0–100 in half-point steps, with at least one contest enabled.');
  if(ids.some(id=>!g.player(id))||new Set(ids).size!==ids.length)return g.notify('Select a different golfer for every slot.');
- if(r.matches.some(m=>[...m.a,...m.b].some(id=>ids.includes(id))))return g.notify('A golfer can only play one matchup in this round.');
+ if(r.matches.some(m=>m.id!==f.dataset.edit&&[...m.a,...m.b].some(id=>ids.includes(id))))return g.notify('A golfer can only play one matchup in this round.');
  const roster=g.getState().seasons.find(s=>s.year===2027)?.roster||{};
- if([...a].some(id=>roster[id]&&roster[id]!=='A')||[...b].some(id=>roster[id]&&roster[id]!=='B'))return g.notify('Assign golfers to their drafted team.');
- r.matches.push({id:uid(),a,b,holes:Array(18).fill(null)});commit('Matchup added.');
+ if(!r.test&&(a.some(id=>roster[id]&&roster[id]!=='A')||b.some(id=>roster[id]&&roster[id]!=='B')))return g.notify('Assign golfers to their drafted team.');
+ const existing=r.matches.find(m=>m.id===f.dataset.edit);
+ if(existing){existing.a=a;existing.b=b;existing.points=p;}else{if(r.started)return;r.matches.push({id:uid(),a,b,points:p,holes:Array(18).fill(null)});}
+ editing='';commit(existing?'Matchup updated.':'Matchup added.');
 });
-panel.addEventListener('change',e=>{
+panel.addEventListener('change',async e=>{
  const t=e.target;if(t.name==='format'){t.form.querySelectorAll('[data-partner]').forEach(x=>x.hidden=Number(x.dataset.partner)>=Number(t.value));return;}
- if(!g.isOwner()||t.dataset.liveHole===undefined)return;
- const r=data().rounds.find(x=>x.id===t.dataset.liveRound),m=r?.matches.find(x=>x.id===t.dataset.liveMatch),i=Number(t.dataset.liveHole);
- if(!r?.started||!m||!Number.isInteger(i)||i<0||i>17||!['','A','B','halve'].includes(t.value))return;
- m.holes[i]=t.value||null;commit(window.GGA_BACKEND_CONFIGURED?'Hole updated locally — check cloud confirmation above.':'Hole saved on this device.');
+ if(t.id==='live-filter'){selectedRound=t.value;selectedMatch='';render();return;}
+ if(t.dataset.liveHole===undefined)return;
+ const r=data().rounds.find(x=>x.id===t.dataset.liveRound),m=r?.matches.find(x=>x.id===t.dataset.liveMatch),i=Number(t.dataset.liveHole),value=t.value||null;
+ if(!m||!editable(m,r)||!Number.isInteger(i)||i<0||i>17||![null,'A','B','halve'].includes(value))return;
+ if(window.GGA_BACKEND_CONFIGURED){busy=true;render();try{await window.GGA_SAVE_HOLE(m.id,i,value,holes(m)[i]);g.notify('Hole saved and confirmed by server.');}catch(e){g.notify('Hole did not save: '+String(e.message||e));}finally{busy=false;render();}}
+ else{m.holes[i]=value;commit('Hole saved on this device.');}
 });
 panel.addEventListener('click',e=>{
- if(!g.isOwner())return;const t=e.target.closest('[data-live-start],[data-live-remove]');if(!t)return;
- const r=data().rounds.find(x=>x.id===(t.dataset.liveStart||t.dataset.liveRound));if(!r||r.started)return;
- if(t.dataset.liveStart){if(!r.matches.length)return;r.started=true;commit('Round started. Matchups locked; hole results remain editable.');}
- else{r.matches=r.matches.filter(m=>m.id!==t.dataset.liveRemove);commit('Unstarted matchup removed.');}
+ const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.liveMode){mode=t.dataset.liveMode;selectedRound='all';selectedMatch='';editing='';render();return;}
+ if(t.dataset.liveOpen){selectedMatch=t.dataset.liveOpen;editing='';render();return;}
+ if(t.hasAttribute('data-live-overview')){selectedMatch='';editing='';render();return;}
+ if(!g.isOwner())return;
+ if(t.hasAttribute('data-live-cancel')){editing='';render();return;}
+ if(t.dataset.liveEdit){editing=t.dataset.liveEdit;render();return;}
+ if(t.hasAttribute('data-live-mock')){
+  if(data().rounds.some(r=>r.test))return g.notify('A mock tournament already exists. Open its rounds to test or customize it.');
+  if(data().rounds.length>26)return g.notify('Make room for four mock rounds first.');
+  const players=g.getState().players.map(p=>p.id);
+  for(const size of [1,2,3,4])data().rounds.push({id:uid(),title:'Mock 2027 · '+size+'v'+size,date:'',test:true,started:true,matches:[{id:uid(),a:players.slice(0,size),b:players.slice(size,size*2),points:{front:1,back:1,match:1},holes:Array(18).fill(null)}]});
+  commit('Four practice rounds created. Official scores are unchanged.');return;
+ }
+ const r=data().rounds.find(x=>x.id===(t.dataset.liveStart||t.dataset.liveRound||t.dataset.liveRename||t.dataset.liveDeleteRound));if(!r)return;
+ if(t.dataset.liveDeleteRound){if(!confirm('Remove this round and its matchups from the Cup?'))return;data().rounds=data().rounds.filter(x=>x.id!==r.id);editing='';commit('Round removed.');}
+ else if(t.dataset.liveStart){if(!r.matches.length)return;r.started=!r.started;commit(r.started?'Round started.':'Round paused.');}
+ else if(t.dataset.liveRename){const title=prompt('Round name',r.title);if(title?.trim()&&title.trim().length<=70){r.title=title.trim();commit('Round renamed.');}}
+ else if(t.dataset.liveRemove){if(!confirm('Remove this matchup from the round? Its results will no longer count.'))return;r.matches=r.matches.filter(m=>m.id!==t.dataset.liveRemove);editing='';commit('Matchup removed.');}
 });
 const prior=window.GGA_UPGRADE_RENDER;window.GGA_UPGRADE_RENDER=()=>{prior?.();render();};
 const priorTab=window.GGA_ON_TAB;window.GGA_ON_TAB=t=>{priorTab?.(t);if(t==='live')render();};
-window.GGA_LIVE={render,score};render();
+window.GGA_LIVE={render,score,contest};render();
 })();
