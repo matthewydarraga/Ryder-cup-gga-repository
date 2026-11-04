@@ -34,11 +34,15 @@ const labels={front:'Front 9',back:'Back 9',match:'Overall match'};
 function commit(message){g.save();render();g.notify(message);}
 function total(rs){let a=0,b=0;for(const r of rs)for(const m of r.matches)for(const c of score(holes(m),points(m))){a+=c.a;b+=c.b;}return [a,b];}
 const pointInputs=p=>['front','back','match'].map(k=>'<label class="form-field">'+labels[k]+' points<input name="points-'+k+'" type="number" min="0" max="100" step="0.5" value="'+p[k]+'" required></label>').join('');
-function matchForm(r,m){const size=m?.a.length||1;return '<form data-live-add="'+r.id+'" data-edit="'+(m?.id||'')+'"><h4>'+(m?'Edit matchup':'New matchup')+'</h4><div class="form-row"><label class="form-field">Match format<select name="format">'+[1,2,3,4].map(n=>'<option value="'+n+'" '+(n===size?'selected':'')+'>'+n+'v'+n+' match play</option>').join('')+'</select></label>'+['A','B'].map(s=>[0,1,2,3].map(i=>'<label class="form-field" '+(i?'data-partner="'+i+'" '+(i>=size?'hidden':''):'')+'>'+esc(team(s))+' · golfer '+(i+1)+'<select name="'+s+i+'"><option value="">Select golfer</option>'+g.getState().players.map(p=>'<option value="'+esc(p.id)+'" '+(m?.[s.toLowerCase()][i]===p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>').join('')).join('')+pointInputs(m?points(m):{front:1,back:1,match:1})+'</div><p class="hint">Ties split that contest’s points equally. Set a contest to 0 to disable it.</p><button class="btn" type="submit">'+(m?'Save matchup':'Add matchup')+'</button>'+(m?'<button type="button" class="btn btn-secondary" data-live-cancel>Cancel edit</button>':'')+'</form>';}
+function matchForm(r,m){const size=m?.a.length||1;return '<form data-live-add="'+r.id+'" data-edit="'+(m?.id||'')+'"><h4>'+(m?'Edit matchup':'New matchup')+'</h4><div class="form-row"><label class="form-field">Match format<select name="format">'+[1,2,3,4].map(n=>'<option value="'+n+'" '+(n===size?'selected':'')+'>'+n+'v'+n+' match play</option>').join('')+'</select></label>'+['A','B'].map(s=>[0,1,2,3].map(i=>'<label class="form-field" '+(i?'data-partner="'+i+'" '+(i>=size?'hidden':''):'')+'>'+esc(team(s))+' · golfer '+(i+1)+'<select name="'+s+i+'"><option value="">Select golfer</option>'+g.getState().players.map(p=>'<option value="'+esc(p.id)+'" '+(m?.[s.toLowerCase()][i]===p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>').join('')).join('')+pointInputs(m?points(m):{front:1,back:1,match:1})+'</div><p class="hint">Ties split that contest’s points equally. Set a contest to 0 to disable it.</p>'+(m?'<fieldset style="margin:16px 0;padding:14px;border:1px solid #707887;border-radius:10px"><legend>When changing players</legend><p class="hint">Choose what happens to the current scorecard. Retained results stay with the team sides, not individual golfers. The previous lineup and scorecard are kept in history.</p><label class="form-field">Existing results<select name="lineup-policy"><option value="">Choose before changing players</option><option value="retain">Keep current results for the updated lineup</option><option value="fresh">Start fresh with an empty scorecard</option></select></label><label class="form-field">Lineup change reason<input name="lineup-reason" maxlength="500" placeholder="Substitution, corrected pairing, or new match"></label></fieldset>':'')+'<button class="btn" type="submit">'+(m?'Save matchup':'Add matchup')+'</button>'+(m?'<button type="button" class="btn btn-secondary" data-live-cancel>Cancel edit</button>':'')+'</form>';}
 function status(c){return !c.played?'Not started':c.lead===0?'All square':esc(team(c.lead>0?'A':'B'))+' '+Math.abs(c.lead)+' UP';}
+function history(m){
+ const entries=(data().lineupHistory||[]).filter(x=>x.lineageId===(m.lineageId||m.id));if(!entries.length)return '';
+ return '<details><summary>Lineup history ('+entries.length+(entries.length===1?' change':' changes')+')</summary>'+entries.slice().reverse().map(x=>'<article class="panel panel-pad"><strong>'+esc(x.policy==='retain'?'Results retained':'Fresh match started')+'</strong><p>'+esc(names(x.before.a))+' vs '+esc(names(x.before.b))+' → '+esc(names(x.after.a))+' vs '+esc(names(x.after.b))+'</p><p>'+esc(x.reason)+'</p><small>By '+esc(g.getState().players.find(p=>p.username===x.actor)?.name||x.actor)+' · '+esc(new Date(x.at).toLocaleString())+'</small><p class="hint">Previous scorecard · '+x.before.holes.filter(h=>h!==null).length+' recorded holes · historical results do not add to current standings.</p><div class="live-holes">'+x.before.holes.map((h,i)=>'<label>Hole '+(i+1)+'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong></label>').join('')+'</div></article>').join('')+'</details>';
+}
 function card(r,m,detail){const hs=holes(m),results=score(hs,points(m)),can=editable(m,r),c=contest(hs);return '<div class="live-match"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p>'+m.a.length+'v'+m.b.length+' · '+c.played+'/18 holes recorded · '+Object.values(points(m)).reduce((a,b)=>a+b,0)+' points available</p><div class="live-points">'+results.map(c=>'<div><small>'+labels[c.key]+' · '+c.points+' '+(c.points===1?'point':'points')+'</small><strong>'+(c.settled?c.a+' – '+c.b:status(c))+'</strong><small>'+(c.settled?'Points secured':'In progress')+'</small></div>').join('')+'</div><p class="hint">Holes won: '+esc(team('A'))+' '+hs.filter(h=>h==='A').length+' · '+esc(team('B'))+' '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+
  (!detail?'<button class="btn btn-secondary" data-live-open="'+m.id+'">Open match & scorecard</button>':'<p class="hint">'+(can?'You can record and correct results for this match.':!r.started?'Matthew must start this round before scoring.':'Only participants in this matchup and Matthew can edit results.')+'</p><div class="live-holes">'+hs.map((h,i)=>'<label>Hole '+(i+1)+(can?'<select '+(busy?'disabled':'')+' data-live-round="'+r.id+'" data-live-match="'+m.id+'" data-live-hole="'+i+'" aria-label="Hole '+(i+1)+' winner">'+[['','Not played'],['A',team('A')],['B',team('B')],['halve','Tied']].map(([v,l])=>'<option value="'+v+'" '+((h||'')===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select>':'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong>')+'</label>').join('')+'</div>')+
- (g.isOwner()?'<div class="flex"><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></div>':'')+'</div>';}
+ (detail?history(m):'')+(g.isOwner()?'<div class="flex"><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></div>':'')+'</div>';}
 function render(){
  const owner=g.isOwner(),rs=rounds();if(selectedRound!=='all'&&!rs.some(r=>r.id===selectedRound))selectedRound='all';
  const shown=rs.filter(r=>selectedRound==='all'||r.id===selectedRound),[a,b]=total(rs),[ra,rb]=total(shown);
@@ -48,9 +52,10 @@ function render(){
  '<div class="panel panel-pad"><label class="form-field">Round / day<select id="live-filter"><option value="all">All rounds</option>'+rs.map(r=>'<option value="'+r.id+'" '+(selectedRound===r.id?'selected':'')+'>'+esc((r.date?r.date+' · ':'')+r.title)+'</option>').join('')+'</select></label>'+(selectedRound!=='all'?'<p>Selected round points: '+ra+' – '+rb+'</p>':'')+(focus?'<button class="btn btn-secondary" data-live-overview>← All matches</button>':'')+'</div>'+
  (!rs.length?'<div class="panel panel-pad"><h3>'+(mode==='test'?'Ready for a test run':'Waiting for the opening tee shot')+'</h3><p>'+(owner?'Create a round'+(mode==='test'?' or generate the mock tournament.':'.'):'Matthew will set up the matchups.')+'</p></div>':'')+
  (focus?'<article class="panel panel-pad"><h3>'+esc(focus.r.title)+'</h3>'+card(focus.r,focus.m,true)+(editing===focus.m.id?matchForm(focus.r,focus.m):'')+'</article>':shown.map(r=>'<article class="panel panel-pad live-round"><h3>'+esc(r.title)+'</h3><p>'+esc(r.date||'')+' · '+(r.started?'Round open for scoring':'Setup')+' · Round points '+total([r]).join(' – ')+'</p>'+(owner?'<div class="flex"><button class="btn btn-gold" data-live-start="'+r.id+'" '+(!r.matches.length?'disabled':'')+'>'+(r.started?'Pause round':'Start round')+'</button><button class="btn btn-secondary" data-live-rename="'+r.id+'">Rename round</button><button class="btn btn-danger" data-live-delete-round="'+r.id+'">Remove round</button></div>'+(!r.started?matchForm(r):''):'')+r.matches.map(m=>card(r,m,false)+(editing===m.id?matchForm(r,m):'')).join('')+'</article>').join(''));
+ if(busy)panel.querySelectorAll?.('button,input,select').forEach(el=>el.disabled=true);
 }
-panel.addEventListener('submit',e=>{
- e.preventDefault();if(!g.isOwner())return;const f=e.target,v=new FormData(f);
+panel.addEventListener('submit',async e=>{
+ e.preventDefault();if(!g.isOwner()||busy)return;const f=e.target,v=new FormData(f);
  if(f.id==='live-round-form'){const title=String(v.get('title')||'').trim();if(!title)return;if(data().rounds.length>=30)return g.notify('Maximum 30 rounds.');data().rounds.push({id:uid(),title,date:String(v.get('date')||''),test:mode==='test',started:false,matches:[]});commit('Round created.');return;}
  const r=data().rounds.find(r=>r.id===f.dataset.liveAdd);if(!r)return;
  const size=Number(v.get('format'));if(![1,2,3,4].includes(size))return;
@@ -61,11 +66,28 @@ panel.addEventListener('submit',e=>{
  const roster=g.getState().seasons.find(s=>s.year===2027)?.roster||{};
  if(!r.test&&(a.some(id=>roster[id]&&roster[id]!=='A')||b.some(id=>roster[id]&&roster[id]!=='B')))return g.notify('Assign golfers to their drafted team.');
  const existing=r.matches.find(m=>m.id===f.dataset.edit);
- if(existing){existing.a=a;existing.b=b;existing.points=p;}else{if(r.started)return;r.matches.push({id:uid(),a,b,points:p,holes:Array(18).fill(null)});}
+ if(existing){
+  const changed=JSON.stringify(existing.a)!==JSON.stringify(a)||JSON.stringify(existing.b)!==JSON.stringify(b);
+  if(changed){
+   const policy=String(v.get('lineup-policy')||''),reason=String(v.get('lineup-reason')||'').trim();
+   if(!['retain','fresh'].includes(policy)||!reason||reason.length>500)return g.notify('Choose whether to keep results or start fresh, and enter a reason.');
+   if(!confirm('Change '+names(existing.a)+' vs '+names(existing.b)+' to '+names(a)+' vs '+names(b)+'? '+(policy==='retain'?'All current results will carry over with their team sides.':'The new match starts with no results.')+' The old lineup and results will be preserved in history.'))return;
+   const request={roundId:r.id,matchId:existing.id,before:{a:[...existing.a],b:[...existing.b]},a,b,points:p,policy,reason},wasOpen=selectedMatch===existing.id;
+   busy=true;render();
+   try{
+    let matchId;
+    if(window.GGA_BACKEND_CONFIGURED){if(!window.GGA_CHANGE_LINEUP)throw Error('Lineup tools are still loading.');({matchId}=await window.GGA_CHANGE_LINEUP(request));}
+    else{const next=window.GGA_LINEUP.makeChange(data(),request,{holes:holes(existing),actor:'matthew.ydarraga',newId:uid(),players:g.getState().players.map(p=>p.id),roster});g.getState().liveCup=next.cup;matchId=next.replacement.id;g.save();}
+    editing='';if(wasOpen)selectedMatch=matchId;g.notify(policy==='retain'?'Lineup changed; current results retained and previous lineup saved.':'Fresh match created; previous lineup and results saved in history.');
+   }catch(e){g.notify('Lineup was not changed: '+String(e.message||e));}
+   finally{busy=false;render();}return;
+  }
+  existing.points=p;
+ }else{if(r.started)return;r.matches.push({id:uid(),a,b,points:p,holes:Array(18).fill(null)});}
  editing='';commit(existing?'Matchup updated.':'Matchup added.');
 });
 panel.addEventListener('change',async e=>{
- const t=e.target;if(t.name==='format'){t.form.querySelectorAll('[data-partner]').forEach(x=>x.hidden=Number(x.dataset.partner)>=Number(t.value));return;}
+ if(busy)return;const t=e.target;if(t.name==='format'){t.form.querySelectorAll('[data-partner]').forEach(x=>x.hidden=Number(x.dataset.partner)>=Number(t.value));return;}
  if(t.id==='live-filter'){selectedRound=t.value;selectedMatch='';render();return;}
  if(t.dataset.liveHole===undefined)return;
  const r=data().rounds.find(x=>x.id===t.dataset.liveRound),m=r?.matches.find(x=>x.id===t.dataset.liveMatch),i=Number(t.dataset.liveHole),value=t.value||null;
@@ -74,7 +96,7 @@ panel.addEventListener('change',async e=>{
  else{m.holes[i]=value;commit('Hole saved on this device.');}
 });
 panel.addEventListener('click',e=>{
- const t=e.target.closest('button');if(!t)return;
+ if(busy)return;const t=e.target.closest('button');if(!t)return;
  if(t.dataset.liveMode){mode=t.dataset.liveMode;selectedRound='all';selectedMatch='';editing='';render();return;}
  if(t.dataset.liveOpen){selectedMatch=t.dataset.liveOpen;editing='';render();return;}
  if(t.hasAttribute('data-live-overview')){selectedMatch='';editing='';render();return;}

@@ -98,6 +98,12 @@ else try{
   if(ticket!==epoch)return;
   window.GGA_LIVE_RESULTS.set(id+'_'+hole,winner);window.GGA_LIVE?.render();
  };
+ if(window.GGA_LINEUP)window.GGA_CHANGE_LINEUP=window.GGA_LINEUP.createCloudAPI({sdk:fireMod,db,
+  assertReady:()=>{if(!ownerAllowed()||dirty||saving||backupBusy||pendingBackup)throw Error('Wait for all owner changes to sync before changing a lineup.');},
+  sessionId:()=>member?.role==='owner'&&auth.currentUser?auth.currentUser.uid+':'+epoch:null,getRevision:()=>revision,
+  onBusy:value=>{backupBusy=value;},
+  onApplied:result=>{patch(result.shared,result.privateData);announce('SERVER CONFIRMED · Lineup changed and previous results saved in history.','live');}
+ });
  window.GGA_CLOUD_SIGNOUT=async()=>{
   if(backupBusy||dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
