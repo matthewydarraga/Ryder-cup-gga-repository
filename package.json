@@ -1,13 +1,13 @@
 {
- "name": "gga-ryder-cup-checks",
- "private": true,
- "scripts": {
-  "test": "node scripts/verify-site.cjs && node scripts/test-live-scoring.cjs && node scripts/test-spark-adapter.cjs && node scripts/test-manual-stats.cjs",
-  "test:rules": "firebase emulators:exec --only firestore --project demo-gga-spark \"node scripts/test-firestore-rules.cjs\""
- },
- "devDependencies": {
-  "@firebase/rules-unit-testing": "4.0.1",
-  "firebase": "11.10.0",
-  "firebase-tools": "14.7.0"
- }
+  "name": "gga-ryder-cup-checks",
+  "private": true,
+  "scripts": {
+    "test": "node scripts/verify-site.cjs && node scripts/test-live-scoring.cjs && node scripts/test-spark-adapter.cjs && node scripts/test-manual-stats.cjs && node scripts/test-backups.cjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-gga-spark \"node scripts/test-firestore-rules.cjs && node scripts/test-backup-rules.cjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "4.0.1",
+    "firebase": "11.10.0",
+    "firebase-tools": "14.7.0"
+  }
 }
