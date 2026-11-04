@@ -187,3 +187,10 @@ body{background:#0b0c13!important;color:#f3f3fa!important}
 #history .gga-history-cover:before{display:none!important}
 #history .gga-history-cover>div{transform:none!important;inset:auto!important}
 #history .gga-history-cover p{max-width:none}
+
+/* Tournament archive pages and a photo-free home hero. */
+#home .gga-promo{grid-template-columns:1fr!important;min-height:0!important}
+#home .gga-promo-content{width:100%;padding:38px}
+[data-history-panel][hidden]{display:none!important}
+.gga-history-select select{min-width:210px}
+@media(max-width:620px){#history>.section-top{align-items:stretch;flex-direction:column}.gga-history-select select{width:100%}#home .gga-promo-content{padding:28px 22px}}
