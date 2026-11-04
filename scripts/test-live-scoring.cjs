@@ -1,36 +1,48 @@
 const assert=require('node:assert/strict');
-const {score,predict}=require('../live-scoring.js');
-const empty=()=>Array(18).fill(null);
-assert(score(empty()).every(s=>!s.settled));
-assert.deepEqual(score(Array(18).fill('halve')).map(s=>[s.a,s.b]),[[.5,.5]]);
-assert.deepEqual(score([...Array(9).fill('A'),...Array(9).fill('B')]).map(s=>[s.a,s.b]),[[.5,.5]]);
-const early=score([...Array(10).fill('A'),...Array(8).fill(null)]);
-assert.equal(early[0].a,1);
-assert.equal(score([...Array(9).fill('A'),...Array(9).fill(null)])[0].settled,false);
-for(let n=0;n<100;n++){
- const holes=Array.from({length:18},()=>['A','B','halve'][Math.floor(Math.random()*3)]);
- const s=score(holes);assert.equal(s.reduce((n,x)=>n+x.a+x.b,0),1);
- const flipped=score(holes.map(x=>x==='A'?'B':x==='B'?'A':x));
- assert.deepEqual(s.map(x=>x.a),flipped.map(x=>x.b));
+const {contest,score,predict,canScore}=require('../live-scoring.js');
+const points={front:1,back:1,match:1},empty=()=>Array(18).fill(null);
+assert.deepEqual(score(Array(18).fill('halve'),points).map(s=>[s.a,s.b]),[[.5,.5],[.5,.5],[.5,.5]]);
+assert.deepEqual(score([...Array(9).fill('A'),...Array(9).fill('B')],points).map(s=>[s.a,s.b]),[[1,0],[0,1],[.5,.5]]);
+assert.equal(score(Array(18).fill('A'))[0].a,1,'Legacy one-point match preserved');
+assert.equal(contest([...Array(10).fill('A'),...Array(8).fill(null)]).a,1);
+assert.equal(contest([...Array(9).fill('A'),...Array(9).fill(null)]).settled,false);
+for(const p of [points,{front:0,back:2.5,match:4},{front:1.5,back:0,match:0}])for(let n=0;n<100;n++){
+ const holes=Array.from({length:18},()=>['A','B','halve'][Math.floor(Math.random()*3)]),s=score(holes,p);
+ assert.equal(s.reduce((n,x)=>n+x.a+x.b,0),Object.values(p).reduce((a,b)=>a+b,0));
+ const flipped=score(holes.map(x=>x==='A'?'B':x==='B'?'A':x),p);assert.deepEqual(s.map(x=>x.a),flipped.map(x=>x.b));
 }
-// Exercise form handlers without creating accounts or changing live tournament data.
+assert(canScore({a:['a'],b:['b']},true,false,'b'));
+assert(!canScore({a:['a'],b:['b']},true,false,'c'));
+assert(!canScore({a:['a'],b:['b']},false,true,'owner'));
+assert(canScore({a:['a'],b:['b']},true,true,'owner'));
 const vm=require('node:vm'),fs=require('node:fs');
-let owner=true,notice='',saved=0;const handlers={},panel={addEventListener:(t,f)=>handlers[t]=f};
-const state={players:['a','b','c','d'].map(id=>({id,name:id})),seasons:[{year:2027,roster:{}}]};
-const g={getState:()=>state,isOwner:()=>owner,player:id=>state.players.find(p=>p.id===id),save:()=>saved++,notify:x=>notice=x};
-vm.runInNewContext(fs.readFileSync(require.resolve('../live-scoring.js'),'utf8'),{window:{GGA:g},document:{createElement:()=>panel,querySelector:()=>({appendChild(){}})},crypto:require('node:crypto').webcrypto,FormData:class{constructor(f){this.f=f}get(k){return this.f.values[k]}}});
+let owner=true,user='a',notice='',saved=0;const handlers={},panel={addEventListener:(t,f)=>handlers[t]=f};
+const state={players:Array.from({length:13},(_,i)=>({id:i===0?'a':i===1?'b':'p'+i,name:'Player '+i})),seasons:[{year:2027,roster:{}}]};
+const g={getState:()=>state,isOwner:()=>owner,getUser:()=>({id:user}),player:id=>state.players.find(p=>p.id===id),save:()=>saved++,notify:x=>notice=x};
+const win={GGA:g};
+vm.runInNewContext(fs.readFileSync(require.resolve('../live-scoring.js'),'utf8'),{window:win,document:{createElement:()=>panel,querySelector:()=>({appendChild(){}})},crypto:require('node:crypto').webcrypto,confirm:()=>true,prompt:()=> 'Renamed',FormData:class{constructor(f){this.f=f}get(k){return this.f.values[k]??null}}});
 const submit=f=>handlers.submit({preventDefault(){},target:f});
-submit({id:'live-round-form',values:{title:'Morning'}});const r=state.liveCup.rounds[0];assert(r);
-submit({dataset:{liveAdd:r.id},values:{format:'2',A0:'a',A1:'b',B0:'c',B1:'d'}});assert.equal(r.matches.length,1);
-submit({dataset:{liveAdd:r.id},values:{format:'1',A0:'a',B0:'c'}});assert.equal(r.matches.length,1);assert(notice.includes('one matchup'));
-handlers.click({target:{closest:()=>({dataset:{liveStart:r.id}})}});assert(r.started);
-handlers.change({target:{dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},value:'A'}});assert.equal(r.matches[0].holes[0],'A');
-owner=false;const before=saved;handlers.change({target:{dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},value:'B'}});assert.equal(saved,before);assert.equal(r.matches[0].holes[0],'A');
-console.log('PASS: scoring, ties, early clinches, 2v2 setup, duplicate prevention, start, score update, owner gating');
-
-for(const size of [1,2,3,4]){owner=true;state.players=Array.from({length:size*2},(_,i)=>({id:'p'+i,name:'p'+i}));submit({id:'live-round-form',values:{title:'Size '+size}});const round=state.liveCup.rounds.at(-1),values={format:String(size)};for(let i=0;i<size;i++){values['A'+i]='p'+i;values['B'+i]='p'+(i+size);}submit({dataset:{liveAdd:round.id},values});assert.equal(round.matches[0].a.length,size);assert.equal(round.matches[0].b.length,size);}
-const p=predict(empty(),[{handicap:5}],[{handicap:20}]);assert(p.a>p.b);assert(Math.abs(p.a+p.b+p.tie-1)<1e-9);
-const neutral=predict(empty(),[{}],[{}]);assert(Math.abs(neutral.a-neutral.b)<1e-9);
-const done=predict(Array(18).fill('A'),[{handicap:54}],[{handicap:0}]);assert.equal(done.a,1);
-assert(predict(['A',...Array(17).fill(null)],[{}],[{}]).a>neutral.a);
-console.log('PASS: 1v1–4v4, one-point totals, rating and score predictions, missing ratings and settled results');
+const click=(dataset={},attributes=[])=>handlers.click({target:{closest:()=>({dataset,hasAttribute:k=>attributes.includes(k)})}});
+const config={format:'1',A0:'a',B0:'b','points-front':'1','points-back':'1','points-match':'2'};
+submit({id:'live-round-form',values:{title:'Morning',date:'2027-06-01'}});const r=state.liveCup.rounds[0];assert(r);
+submit({dataset:{liveAdd:r.id},values:config});assert.equal(r.matches.length,1);assert.equal(r.matches[0].points.match,2);
+submit({dataset:{liveAdd:r.id},values:config});assert(notice.includes('one matchup'));
+click({liveStart:r.id});assert(r.started);
+const target={dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},value:'A'};
+(async()=>{
+ await handlers.change({target});assert.equal(r.matches[0].holes[0],'A');
+ owner=false;user='p2';const before=saved;target.value='B';await handlers.change({target});assert.equal(saved,before);assert.equal(r.matches[0].holes[0],'A');
+ user='b';await handlers.change({target});assert.equal(r.matches[0].holes[0],'B','Participant may correct a hole');
+ owner=true;click({liveStart:r.id});target.value='A';await handlers.change({target});assert.equal(r.matches[0].holes[0],'B','Paused round is not editable');
+ click({liveStart:r.id});submit({dataset:{liveAdd:r.id,edit:r.matches[0].id},values:{...config,'points-front':'2.5'}});assert.equal(r.matches[0].points.front,2.5,'Owner may change active match points');
+ submit({dataset:{liveAdd:r.id,edit:r.matches[0].id},values:{...config,'points-front':'-1'}});assert.equal(r.matches[0].points.front,2.5,'Invalid points rejected');
+ click({liveOpen:r.matches[0].id});assert(panel.innerHTML.includes('Hole 18'));click({},['data-live-overview']);assert(panel.innerHTML.includes('Open match &amp; scorecard')||panel.innerHTML.includes('Open match & scorecard'));
+ click({liveMode:'test'});click({},['data-live-mock']);assert.equal(state.liveCup.rounds.filter(r=>r.test).length,4);assert.equal(state.liveCup.rounds.filter(r=>!r.test).length,1);
+ for(const size of [1,2,3,4]){const mock=state.liveCup.rounds.find(r=>r.test&&r.matches[0].a.length===size);assert(mock);assert.equal(mock.matches[0].b.length,size);assert.equal(Object.values(mock.matches[0].points).reduce((a,b)=>a+b,0),3);}
+ click({},['data-live-mock']);assert.equal(state.liveCup.rounds.length,5,'Mock creation is idempotent');
+ assert(panel.innerHTML.includes('PRACTICE ONLY'));click({liveMode:'official'});assert(!panel.innerHTML.includes('Mock 2027 · 4v4'));
+ win.GGA_LIVE_RESULTS=new Map([[r.matches[0].id+'_0','halve']]);win.GGA_LIVE.render();assert(panel.innerHTML.includes('Tied 1'),'Server score overlay renders');
+ click({liveRemove:r.matches[0].id,liveRound:r.id});assert.equal(r.matches.length,0);
+ const neutral=predict(empty(),[{}],[{}]);assert(Math.abs(neutral.a-neutral.b)<1e-9);assert(predict(empty(),[{handicap:5}],[{handicap:20}]).a>neutral.a);
+ console.log('PASS: legacy/new points, ties, custom weights, early clinches, 1v1–4v4 mocks, isolation, duplicate prevention, owner edits, participant permissions, pause, match/overall views and cloud score overlay');
+})().catch(e=>{console.error(e);process.exitCode=1;});
