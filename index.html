@@ -252,6 +252,14 @@ const PLAYER_CATALOG=[
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='brandon.durman'),{photo:'./assets/brandon-green-jacket.webp',photoFallback:'./assets/brandon-green-jacket.webp'});
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='jordan.mcneely'),{photo:'./assets/jordan-green-jacket.webp',photoFallback:'./assets/jordan-green-jacket.webp'});
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='reid.mixon'),{photo:'./assets/reid-green-jacket.webp',photoFallback:'./assets/reid-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='jake.norris'),{photo:'./assets/jake-green-jacket.webp',photoFallback:'./assets/jake-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='kody.russey'),{photo:'./assets/kody-green-jacket.webp',photoFallback:'./assets/kody-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='nate.cox'),{photo:'./assets/nate-green-jacket.webp',photoFallback:'./assets/nate-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='peyton.braswell'),{photo:'./assets/peyton-green-jacket.webp',photoFallback:'./assets/peyton-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='zach.cousar'),{photo:'./assets/zach-green-jacket.webp',photoFallback:'./assets/zach-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='ryan.higgins'),{photo:'./assets/ryan-green-jacket.webp',photoFallback:'./assets/ryan-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='michael.rodriguez'),{photo:'./assets/michael-green-jacket.webp',photoFallback:'./assets/michael-green-jacket.webp'});
+Object.assign(PLAYER_CATALOG.find(p=>p.username==='jack.abraham'),{photo:'./assets/jack-green-jacket.webp',photoFallback:'./assets/jack-green-jacket.webp'});
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='matthew.ydarraga'),{photo:'./assets/matthew-green-jacket.webp',photoFallback:'./assets/matthew-green-jacket.webp'});
 Object.assign(PLAYER_CATALOG.find(p=>p.username==='will.parker'),{photo:'./assets/will-green-jacket.webp',photoFallback:'./assets/will-green-jacket.webp'});
 let state;try{state=JSON.parse(localStorage.getItem(STORE));if(!state?.players||!state?.seasons)throw Error('No save')}catch{state=initial()};
@@ -265,6 +273,7 @@ function mergeCatalog(){
   p.name=p.name||cat.name;p.username=cat.username;p.football=cat.football;p.officialPhoto=cat.photo;p.officialPhotoFallback=cat.photoFallback;p.position=cat.position;
   if(cat.username==='brandon.durman'&&p.photoRevision!=='green-jacket-20261022'){p.previousCustomPhoto=p.customPhoto||null;p.customPhoto=null;p.photoRevision='green-jacket-20261022';}
   if(cat.username==='matthew.ydarraga'&&p.photoRevision!=='green-jacket-20261104'){p.previousCustomPhoto=p.customPhoto||null;p.customPhoto=null;p.photoRevision='green-jacket-20261104';}
+  if(["jake.norris","kody.russey","nate.cox","peyton.braswell","zach.cousar","ryan.higgins","michael.rodriguez","jack.abraham"].includes(cat.username)&&p.photoRevision!=='green-jacket-batch-20261104'){p.previousCustomPhoto=p.customPhoto||null;p.customPhoto=null;p.photoRevision='green-jacket-batch-20261104';}
   if(p.handicap===undefined)p.handicap=null;if(p.handicapChecked===undefined)p.handicapChecked=null;if(p.ghinNumber===undefined)p.ghinNumber='';if(p.fantasyCharacterId===undefined)p.fantasyCharacterId=null;
   if(p.fantasyCharacterId&&!charById(p.fantasyCharacterId))p.fantasyCharacterId=null;
   kept.push(p);
