@@ -1,7 +1,7 @@
 /* Spark-only: Firebase Auth + Firestore. No custom-token server or Storage. */
 const gga=window.GGA,$=s=>document.querySelector(s);
 function announce(text,kind='info'){
- let b=$('#gga-cloud-state');if(!b){b=document.createElement('div');b.id='gga-cloud-state';b.className='gga-cloud-state';$('main.shell')?.prepend(b);}b.textContent=text;b.dataset.kind=kind;
+ let b=$('#gga-cloud-state');if(!b){b=document.createElement('div');b.id='gga-cloud-state';b.className='gga-cloud-state';$('main.shell')?.prepend(b);}b.textContent=text;b.dataset.kind=kind;b.hidden=!text;
 }
 if(!window.GGA_BACKEND_CONFIGURED){announce('DEVICE PREVIEW · Accounts and shared syncing are inactive. Firebase setup is required.','preview');}
 else try{
@@ -16,7 +16,7 @@ else try{
  const s=gga.getState(),profiles=new Map();
  const rosterPhotos=new Map(s.players.map(p=>[p.id,{officialPhoto:p.officialPhoto,officialPhotoFallback:p.officialPhotoFallback}]));
  let member=null,ready=false,suppress=false,revision=null,dirty=false,saving=false,blocked=false,timer=null,epoch=0,changes=0;
- let stops=[],lastContent='',pendingBackup=null,lastAuthError='';
+ let stops=[],lastContent='',pendingBackup=null,lastAuthError='',openProfileAfterLogin=false;
  const errorText=e=>String(e?.message||e).slice(0,220);
  const ownerAllowed=()=>member?.role==='owner'&&member?.username==='matthew.ydarraga'&&auth.currentUser&&ready&&!blocked;
  function render(){const prev=suppress;suppress=true;try{gga.render();gga.save();}finally{suppress=prev;}}
@@ -97,23 +97,21 @@ else try{
   });
  }
  function loginMode(){
-  $('#gga-email-wrap').hidden=true;$('#login-email').required=false;$('#gga-reset-password').hidden=true;
-  $('#gga-password-label').textContent='Your 6-digit player PIN';
-  const input=$('#login-pin');input.pattern='[0-9]{6}';input.maxLength=6;input.minLength=6;input.inputMode='numeric';input.autocomplete='off';input.placeholder='Enter your assigned PIN';
-  $('#gga-login-guidance').textContent='Choose your name and enter the PIN Matthew gave you.';
-  $('#login-mode-note').textContent='Your account is ready. No email or account registration is needed. Ask Matthew if you need your PIN.';
-  $('#gga-login-security-note').textContent='Your PIN opens your own player profile on any device. Keep it private. Matthew’s PIN also opens Owner Studio.';
-  $('#login-submit').textContent='Sign in with PIN';
+  $('#gga-email-wrap').hidden=true;$('#login-email').required=false;$('#login-email').disabled=true;$('#gga-reset-password').hidden=true;
+  $('#gga-password-label').textContent='PIN';
+  const input=$('#login-pin');input.pattern='[0-9]{6}';input.maxLength=6;input.minLength=6;input.inputMode='numeric';input.autocomplete='off';input.placeholder='6-digit PIN';
+  $('#gga-login-guidance').hidden=true;$('#gga-login-security-note').hidden=true;
+  $('#login-mode-note').textContent='';$('#login-submit').textContent='Sign in';
  }
  window.GGA_REFRESH_LOGIN=loginMode;
  $('#login-form').addEventListener('submit',async e=>{
   e.preventDefault();e.stopImmediatePropagation();lastAuthError='';
   const username=$('#login-player').value,pin=$('#login-pin').value.trim();
   if(!s.players.some(p=>p.username===username)||!/^\d{6}$/.test(pin)){$('#login-mode-note').textContent='Select your name and enter your 6-digit PIN.';return;}
-  $('#login-submit').disabled=true;$('#login-mode-note').textContent='Signing in…';
+  openProfileAfterLogin=true;$('#login-submit').disabled=true;$('#login-submit').textContent='Signing in…';$('#login-mode-note').textContent='';
   try{const password=await pinPassword(username,pin);await authMod.signInWithEmailAndPassword(auth,username+'@gga-pin.invalid',password);$('#login-pin').value='';}
-  catch(e){const code=e?.code;$('#login-mode-note').textContent=code==='auth/too-many-requests'?'Too many attempts. Wait a few minutes before trying again.':code==='auth/network-request-failed'?'Connection failed. Check your internet and try again.':'Unable to sign in. Check your selected name and PIN, or ask Matthew for your assigned PIN.';}
-  finally{$('#login-submit').disabled=false;}
+  catch(e){openProfileAfterLogin=false;const code=e?.code;$('#login-mode-note').textContent=code==='auth/too-many-requests'?'Too many attempts. Please try again in a few minutes.':code==='auth/network-request-failed'?'Check your connection and try again.':'Check your selected name and PIN, then try again.';}
+  finally{$('#login-submit').disabled=false;$('#login-submit').textContent='Sign in';}
  },true);
  async function saveProfile(p,fields){
   if(!member||blocked||!ready||(member.playerId!==p.id&&member.role!=='owner'))throw Error('Sign in to your provisioned account.');
@@ -141,7 +139,7 @@ else try{
  },true);
  authMod.onAuthStateChanged(auth,async user=>{
   const ticket=++epoch;stop();
-  if(!user){announce(lastAuthError||'MEMBER SIGN-IN REQUIRED · Choose your name and enter your assigned 6-digit PIN.',lastAuthError?'error':'preview');return;}
+  if(!user){announce(lastAuthError,lastAuthError?'error':'preview');return;}
   announce('VERIFYING · Checking your provisioned membership…','loading');
   const ref=fireMod.doc(db,'members',user.uid);
   try{
@@ -170,7 +168,7 @@ else try{
       }
       patch(data,privateData);ready=true;authorize();gga.setSignedIn(m.username);announce('SERVER COPY RECEIVED · Listening for clubhouse and scoring updates.','live');
      }else{ready=true;authorize();gga.setSignedIn(m.username);announce('SIGNED IN · '+p.name+' · Your profile changes sync across devices.','live');}
-     gga.closeLogin();
+     gga.closeLogin();if(openProfileAfterLogin){openProfileAfterLogin=false;gga.openMyProfile?.();}
     }catch(e){fail(e);}
    },fail));
    stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),{includeMetadataChanges:true},snap=>{

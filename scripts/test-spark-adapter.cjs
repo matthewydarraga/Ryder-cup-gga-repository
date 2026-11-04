@@ -53,7 +53,7 @@ async function harness(pending=false){
  assert.equal(signin.email,'reid.mixon@gga-pin.invalid');
  const expected='GGA!'+require('node:crypto').pbkdf2Sync('123456','GGA-PIN-v1:reid.mixon',150000,32,'sha256').toString('base64');
  assert.equal(signin.password,expected,'WebCrypto must match provisioning KDF');
- assert.equal(pin.node('#login-email').required,false);assert.equal(pin.node('#gga-email-wrap').hidden,true);
+ assert.equal(pin.node('#login-email').required,false);assert.equal(pin.node('#login-email').disabled,true);assert.equal(pin.node('#login-submit').textContent,'Sign in');assert.equal(pin.node('#gga-email-wrap').hidden,true);
  pin.ctx.modules[1].signInWithEmailAndPassword=async()=>{throw {code:'auth/invalid-credential'};};
  pin.node('#login-pin').value='000000';await pin.events['#login-form:submit']({preventDefault(){},stopImmediatePropagation(){}});
  assert(pin.node('#login-mode-note').textContent.includes('selected name and PIN'));
