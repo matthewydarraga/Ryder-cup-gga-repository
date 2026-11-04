@@ -132,7 +132,7 @@ input[type=range]{accent-color:#c2933e}
 @media(max-width:880px){.gga-draft-layout{grid-template-columns:1fr}.gga-promo{grid-template-columns:1fr 42%}.gga-promo-content{padding:30px}}@media(max-width:620px){.gga-promo{grid-template-columns:1fr}.gga-promo-content{padding:27px}.gga-promo-art{height:260px;min-height:260px;order:-1}.gga-promo h2{font-size:46px}.gga-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gga-dual{grid-template-columns:1fr}.gga-draft-teams{grid-template-columns:1fr 1fr;gap:7px}.gga-picks{padding:4px}.gga-pick{font-size:11px;padding:9px 3px;gap:5px}.gga-draft-versus{font-size:12px}.gga-history-cover{height:280px}.gga-round-grid{grid-template-columns:1fr}.gga-admin-result{grid-template-columns:1fr 85px 1fr}}
 .legend-portrait{position:relative;aspect-ratio:1!important;background-repeat:no-repeat;filter:none!important;min-height:0}.forge-card .legend-portrait{max-height:none!important}.forge-selected .legend-portrait{max-height:none!important}.character-chip .legend-portrait{width:100%;height:100%;aspect-ratio:auto!important}.character-chip .cinematic-overlay{display:none}.forge-gallery{grid-template-columns:repeat(4,minmax(0,1fr))}.forge-footnote{line-height:1.6}@media(max-width:780px){.forge-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.forge-selected .legend-portrait{width:170px;margin:0 auto}.forge-intro h2{font-size:28px}}
 .rank-skills-toggle{background:transparent;border:0;color:inherit;text-align:left;cursor:pointer;padding:8px 0;min-height:44px;font:inherit;display:block}.rank-skills-toggle:focus-visible{outline:2px solid #ffdb32;outline-offset:4px}.rank-skills-cue{display:block;color:#dfbb72;font-size:12px;margin-top:5px}.rank-skills-row[hidden]{display:none!important}.rank-skills-content{white-space:normal;max-width:440px;padding:16px;background:#101827;border-radius:12px}.rank-skills-content h3{margin:0 0 10px}.rank-skills-content p{line-height:1.5}
-</style><link rel="stylesheet" href="./premium.css?v=20261028-live"><link rel="stylesheet" href="./dossier-dark.css?v=20261104-champions"><style id="gga-clean-signin-style">
+</style><link rel="stylesheet" href="./premium.css?v=20261028-live"><link rel="stylesheet" href="./dossier-dark.css?v=20261104-open-gallery"><style id="gga-clean-signin-style">
 #login-mask{padding:20px;background:#070810cc;backdrop-filter:blur(9px)}
 #login-mask .login-modal{position:relative;width:100%;max-width:380px;padding:30px 26px 26px;border:1px solid #373a49;border-radius:22px;background:#171924;box-shadow:0 24px 80px #0008;color:#f4f4f8}
 #login-mask .login-modal [hidden],#gga-cloud-state[hidden]{display:none!important}
@@ -155,7 +155,7 @@ input[type=range]{accent-color:#c2933e}
 </style><script src="./firebase-config.js"></script><script>window.GGA_BACKEND_CONFIGURED=!!(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.projectId&&!String(window.FIREBASE_CONFIG.projectId).includes('REPLACE_ME')&&window.FIREBASE_CONFIG.apiKey&&!String(window.FIREBASE_CONFIG.apiKey).includes('REPLACE_ME'));</script></head>
 <body>
 <header class="hero"><div class="hero-inner"><div class="nav-top"><div class="brand"><div class="brand-emblem">G</div><div>GGA RYDER CUP</div></div><div class="year-box"><select id="season-select" aria-label="Tournament year"></select><button id="add-season">+ Year</button></div><div class="account-area"><button class="account-btn" id="account-btn">Sign in · Player profile</button></div></div><div class="eyebrow" style="margin-top:30px">The annual tournament</div><h1 class="hero-title">GGA <span>Ryder Cup</span></h1><p class="hero-sub">The archive. The rivalry. The rankings.</p><div class="hero-footer"><span class="mini-pill" id="hero-location">Lake Charles, LA</span><span class="mini-pill" id="hero-record">2026 • Tournament archive</span><span class="mini-pill">13 golfers · annual history</span></div></div></header>
-<main class="shell"><nav class="top-tabs" id="tabs"><button class="active" data-tab="home">2027 Clubhouse</button><button data-tab="history">2026 History</button><button data-tab="draft">Draft board</button><button data-tab="players">Players</button><button data-tab="forge">Golf Legends</button><button data-tab="rankings">Power rankings</button><button data-tab="stats">Player statistics</button><button data-tab="matches" class="gga-owner-only" hidden>Owner scoring</button><button data-tab="roster" class="gga-owner-only" hidden>Roster & data</button><button data-tab="owner" class="gga-owner-only" hidden>Owner studio</button></nav>
+<main class="shell"><nav class="top-tabs" id="tabs"><button class="active" data-tab="home">2027 Clubhouse</button><button data-tab="history">History</button><button data-tab="draft">Draft board</button><button data-tab="players">Players</button><button data-tab="forge">Golf Legends</button><button data-tab="rankings">Power rankings</button><button data-tab="stats">Player statistics</button><button data-tab="matches" class="gga-owner-only" hidden>Owner scoring</button><button data-tab="roster" class="gga-owner-only" hidden>Roster & data</button><button data-tab="owner" class="gga-owner-only" hidden>Owner studio</button></nav>
 
 <section class="view active" id="home" aria-label="2027 GGA clubhouse">
  <div class="gga-promo">
@@ -170,11 +170,20 @@ input[type=range]{accent-color:#c2933e}
  </div>
 </section>
 <section class="view" id="history">
- <div class="section-top"><div><div class="kicker">The GGA vault · Lake Charles, Louisiana</div><h2>2026 Ryder Cup history</h2><p class="subtext">Confirmed results from the inaugural record book. No fabricated hole-by-hole scores or team totals.</p></div></div>
- <div class="gga-history-cover"><img src="./assets/gga-2026-group.webp" alt="2026 GGA Ryder Cup group photograph" loading="lazy"><div><div class="gga-goldline">ETCHED IN HISTORY</div><h3>The 2026 field</h3><p>Thirteen names. Twelve recorded matchups. One season that started the story.</p></div></div>
+ <div class="section-top"><div><div class="kicker">The GGA vault</div><h2>Tournament history</h2><p class="subtext">The champions, the matches, and the moments. Explore the 2026 Ryder Cup and 2025 GGA Open.</p></div></div>
+ <div class="gga-history-cover"><img src="./assets/gga-2026-group.webp" alt="2026 GGA Ryder Cup group photograph" loading="lazy"><div><div class="gga-goldline">ETCHED IN HISTORY</div><h3>The 2026 field</h3><p>Thirteen names. Twelve recorded matchups. The 2026 Ryder Cup field in Lake Charles.</p></div></div>
  <div class="gga-stat-grid" id="gga-history-stats"></div>
  <div class="panel"><div class="panel-head"><h3>Individual 2026 records</h3><p>W–L–H is based on the confirmed full-match winner, not unknown hole scores.</p></div><div class="table-wrap"><table><thead><tr><th>Golfer</th><th>Matches</th><th>W–L–H</th><th>Singles</th><th>Team</th></tr></thead><tbody id="gga-history-players"></tbody></table></div></div>
  <div id="gga-history-rounds"></div>
+
+ <article class="panel gga-open-archive" id="gga-2025-open" aria-labelledby="gga-open-title">
+  <div class="panel-head"><div><div class="kicker">The GGA vault · 2025</div><h3 id="gga-open-title">2025 GGA Open</h3><p>Scramble tournament</p></div><span class="badge">2025</span></div>
+  <div class="gga-open-champions"><span aria-hidden="true">🏆</span><div><small>SCRAMBLE CHAMPIONS</small><h4>Jake Norris &amp; Michael “Mike” Rodriguez</h4><p>Winners of the 2025 GGA Open.</p></div></div>
+  <div class="gga-open-gallery">
+   <figure><a href="./assets/gga-2025-open-01.webp" target="_blank" rel="noopener" aria-label="Open first 2025 GGA Open photo full size"><img src="./assets/gga-2025-open-01.webp" alt="Two golfers beside golf carts at the 2025 GGA Open" loading="lazy" width="1536" height="1152"></a><figcaption>2025 GGA Open · Around the clubhouse</figcaption></figure>
+   <figure><a href="./assets/gga-2025-open-02.webp" target="_blank" rel="noopener" aria-label="Open second 2025 GGA Open photo full size"><img src="./assets/gga-2025-open-02.webp" alt="Four golfers together on the course at the 2025 GGA Open" loading="lazy" width="1536" height="1152"></a><figcaption>2025 GGA Open · On the course</figcaption></figure>
+  </div><p class="footnote">Tap either photo to view the full image.</p>
+ </article>
  <p class="footnote">2026 data is reconstructed from results given by the organizer. Nate Cox was absent for singles and Zach Cousar lost his handicap benchmark. Team affiliations, front/back nine scores, and overall Cup score were not provided and are intentionally not invented.</p>
 </section>
 <section class="view" id="draft">
@@ -407,7 +416,7 @@ window.GGA={playerHonors,getState:()=>state,getUser:currentUser,isOwner:isOrgani
 window.GGA.openMyProfile=()=>{if(!currentUser()){showTab('profile');openLogin();return;}selectedPlayer=currentUser().id;showTab('players');document.body.dataset.profileView='true';renderPlayerProfile();if(window.GGA_ON_TAB)window.GGA_ON_TAB('profile');};
 render();save();
 })();
-</script><script src="./ghin-snapshot.js?v=20261103-manual-stats-r2"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261104-pin-clean"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261104-champions"></script><script src="./live-scoring.js?v=20261102-course"></script><script>
+</script><script src="./ghin-snapshot.js?v=20261103-manual-stats-r2"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261104-open-gallery"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261104-champions"></script><script src="./live-scoring.js?v=20261102-course"></script><script>
 (function(){
   if(!window.GGA_BACKEND_CONFIGURED)return;
   const status=document.getElementById('login-mode-note');

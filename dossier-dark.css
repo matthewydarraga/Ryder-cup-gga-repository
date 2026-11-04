@@ -161,3 +161,8 @@ body{background:#0b0c13!important;color:#f3f3fa!important}
 .gga-dossier-trophies{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
 .gga-dossier-trophies .gga-championship-honor{padding:12px 8px;border:1px solid #ad8a35;border-radius:10px;background:#b58a2012}
 .gga-dossier-trophies .gga-championship-honor b{color:#f7d77b;font-size:12px;line-height:1.5}
+
+.gga-open-champions{display:flex;gap:16px;align-items:center;padding:22px;background:#b58a2012;border-bottom:1px solid #c7a34f55}
+.gga-open-champions>span{font-size:36px}.gga-open-champions small{font-size:10px;letter-spacing:.12em;color:#c7a34f;font-weight:800}.gga-open-champions h4{font:24px/1.25 Georgia,serif;margin:6px 0;color:inherit}.gga-open-champions p{margin:0;font-size:13px;color:var(--muted)}
+.gga-open-gallery{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px}.gga-open-gallery figure{margin:0;min-width:0}.gga-open-gallery a{display:block;border-radius:10px;overflow:hidden}.gga-open-gallery img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:contain}.gga-open-gallery figcaption{font-size:12px;color:var(--muted);margin-top:9px}.gga-open-archive>.footnote{padding:0 20px 12px}
+@media(max-width:620px){.gga-open-gallery{grid-template-columns:1fr;padding:14px;gap:20px}.gga-open-champions{padding:18px 14px}.gga-open-champions h4{font-size:21px}}
