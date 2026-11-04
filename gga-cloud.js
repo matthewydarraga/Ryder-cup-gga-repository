@@ -169,7 +169,7 @@ else try{
        privateData=privateSnap.data();
       }
       patch(data,privateData);ready=true;authorize();gga.setSignedIn(m.username);announce('SERVER COPY RECEIVED · Listening for clubhouse and scoring updates.','live');
-     }else{ready=true;authorize();gga.setSignedIn(m.username);announce('NO SHARED RECORD · Matthew must publish the first clubhouse from Owner Studio.','preview');}
+     }else{ready=true;authorize();gga.setSignedIn(m.username);announce('SIGNED IN · '+p.name+' · Your profile changes sync across devices.','live');}
      gga.closeLogin();
     }catch(e){fail(e);}
    },fail));
