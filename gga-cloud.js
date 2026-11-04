@@ -16,7 +16,7 @@ else try{
  const s=gga.getState(),profiles=new Map();
  const rosterPhotos=new Map(s.players.map(p=>[p.id,{officialPhoto:p.officialPhoto,officialPhotoFallback:p.officialPhotoFallback}]));
  let member=null,ready=false,suppress=false,revision=null,dirty=false,saving=false,blocked=false,timer=null,epoch=0,changes=0;
- let publishedMatches=new Map(),scoresReady=false;
+ let publishedMatches=new Map(),scoresReady=false,backupBusy=false;
  window.GGA_LIVE_RESULTS=new Map();
  let stops=[],lastContent='',pendingBackup=null,lastAuthError='',openProfileAfterLogin=false;
  const errorText=e=>String(e?.message||e).slice(0,220);
@@ -26,7 +26,7 @@ else try{
  function stop(){scoresReady=false;window.GGA_LIVE_RESULTS.clear();publishedMatches.clear();clearTimeout(timer);stops.forEach(f=>f());stops=[];member=null;ready=false;dirty=false;revision=null;blocked=false;profiles.clear();authorize();gga.setSignedIn('');}
  function fail(e){
   blocked=true;authorize();clearTimeout(timer);announce('SYNC STOPPED · '+errorText(e)+' · Export a backup, then reload to receive the server copy.','error');
-  const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-tiny';button.textContent='Download local backup';button.addEventListener('click',()=>gga.exportFile());$('#gga-cloud-state').append(button);gga.render();
+  const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-tiny';button.textContent='Download local backup';button.addEventListener('click',()=>window.GGA_EXPORT_DEVICE_RECOVERY?window.GGA_EXPORT_DEVICE_RECOVERY():gga.exportFile());$('#gga-cloud-state').append(button);gga.render();
  }
  function content(){
   const future=s.seasons.find(x=>x.year===2027);
@@ -77,12 +77,12 @@ else try{
   finally{saving=false;if(dirty&&!blocked&&ticket===epoch){clearTimeout(timer);timer=setTimeout(()=>publish(),650);}}
  }
  window.GGA_AFTER_SAVE=()=>{
-  if(suppress||!ownerAllowed()||revision===null||JSON.stringify(content())===lastContent)return;
+  if(backupBusy||suppress||!ownerAllowed()||revision===null||JSON.stringify(content())===lastContent)return;
   dirty=true;changes++;announce('UNSYNCED · Owner changes waiting to save.','loading');clearTimeout(timer);timer=setTimeout(()=>publish(),650);
  };
  const canScore=id=>{
   const r=s.liveCup?.rounds.find(r=>r.matches.some(m=>m.id===id)),m=r?.matches.find(m=>m.id===id);
-  return !!(member&&ready&&scoresReady&&!blocked&&!dirty&&!saving&&r?.started&&m&&(member.role==='owner'||[...m.a,...m.b].includes(member.playerId)));
+  return !!(member&&ready&&scoresReady&&!blocked&&!dirty&&!saving&&!backupBusy&&r?.started&&m&&(member.role==='owner'||[...m.a,...m.b].includes(member.playerId)));
  };
  window.GGA_SAVE_HOLE=async(id,hole,winner,expected)=>{
   if(!canScore(id)||!Number.isInteger(hole)||hole<0||hole>17||![null,'A','B','halve'].includes(winner))throw Error('This match is not ready for scoring. Wait for setup to sync.');
@@ -99,7 +99,7 @@ else try{
   window.GGA_LIVE_RESULTS.set(id+'_'+hole,winner);window.GGA_LIVE?.render();
  };
  window.GGA_CLOUD_SIGNOUT=async()=>{
-  if(dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
+  if(backupBusy||dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
  };
  // The public alias is only an Auth identifier. Assigned PINs never ship in source.
@@ -142,7 +142,7 @@ else try{
   finally{$('#login-submit').disabled=false;$('#login-submit').textContent='Sign in';}
  },true);
  async function saveProfile(p,fields){
-  if(!member||blocked||!ready||(member.playerId!==p.id&&member.role!=='owner'))throw Error('Sign in to your provisioned account.');
+  if(backupBusy||!member||blocked||!ready||(member.playerId!==p.id&&member.role!=='owner'))throw Error('Sign in to your provisioned account.');
   try{await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{...fields,updatedAt:fireMod.serverTimestamp()},{merge:true});}
   catch(e){gga.notify('Profile did not sync. Reload to restore the server copy.');throw e;}
  }
@@ -183,7 +183,7 @@ else try{
     if(!snap.exists()||JSON.stringify(snap.data())!==JSON.stringify(m)){++epoch;stop();void authMod.signOut(auth);announce('MEMBERSHIP CHANGED · Sign in again after Matthew checks your access.','error');}
    },fail));
    stops.push(fireMod.onSnapshot(publicRef,{includeMetadataChanges:true},async snap=>{
-    if(ticket!==epoch||snap.metadata.hasPendingWrites||dirty||saving||blocked)return;
+    if(ticket!==epoch||snap.metadata.hasPendingWrites||dirty||saving||blocked||backupBusy)return;
     if(snap.metadata.fromCache){announce('OFFLINE · Showing cached data; live updates are not confirmed.','preview');return;}
     try{
      if(snap.exists()){
@@ -200,18 +200,24 @@ else try{
     }catch(e){fail(e);}
    },fail));
    stops.push(fireMod.onSnapshot(fireMod.collection(db,'liveScores'),{includeMetadataChanges:true},snap=>{
-    if(ticket!==epoch||snap.metadata?.hasPendingWrites)return;
+    if(ticket!==epoch||backupBusy||snap.metadata?.hasPendingWrites)return;
     if(snap.metadata?.fromCache){scoresReady=false;window.GGA_LIVE?.render();return;}
     for(const c of snap.docChanges()){if(c.type==='removed')window.GGA_LIVE_RESULTS.delete(c.doc.id);else window.GGA_LIVE_RESULTS.set(c.doc.id,c.doc.data().winner);}
     scoresReady=true;window.GGA_LIVE?.render();
    },e=>{scoresReady=false;announce('SCORING NOT CONNECTED · '+errorText(e)+' · Match permissions must be published in Firebase.','error');window.GGA_LIVE?.render();}));
    stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),{includeMetadataChanges:true},snap=>{
-    if(ticket!==epoch||snap.metadata?.hasPendingWrites)return;
+    if(ticket!==epoch||backupBusy||snap.metadata?.hasPendingWrites)return;
     for(const c of snap.docChanges()){if(c.type==='removed')profiles.delete(c.doc.id);else profiles.set(c.doc.id,c.doc.data());const p=s.players.find(p=>p.id===c.doc.id);if(p)applyProfile(p);}render();
    },fail));
   }catch(e){if(ticket===epoch){lastAuthError='ACCOUNT NOT AUTHORIZED · '+errorText(e);stop();$('#login-mode-note').textContent=lastAuthError;announce(lastAuthError,'error');await authMod.signOut(auth);}}
  });
+ if(window.GGA_BACKUP_CLOUD_FACTORY)window.GGA_BACKUP_CLOUD=window.GGA_BACKUP_CLOUD_FACTORY({sdk:fireMod,db,gga,projectId:window.FIREBASE_CONFIG.projectId,
+  assertReady:()=>{if(!ownerAllowed()||dirty||saving||pendingBackup||backupBusy)throw Error('Sign in as Matthew and wait for all changes to sync before using backups.');},
+  sessionId:()=>member?.role==='owner'&&auth.currentUser?auth.currentUser.uid+':'+epoch:null,
+  onBusy:value=>{backupBusy=value;},
+  onRestored:(plan,next)=>{profiles.clear();for(const [id,d]of Object.entries(plan.profiles))profiles.set(id,d);window.GGA_LIVE_RESULTS.clear();patch({...plan.shared,revision:next},{rounds:plan.privateRounds,revision:next});dirty=false;pendingBackup=null;announce('RESTORE CONFIRMED · Complete backup restored. All live rounds are paused for review.','live');}
+ });
  window.GGA_BACKEND_API={ownerAllowed,canScore,canPublishFirst:()=>ownerAllowed()&&revision===null};window.GGA_LOGIN_READY=true;loginMode();
  window.addEventListener('offline',()=>announce('OFFLINE · Changes are not confirmed. Reconnect before editing.','preview'));
- window.addEventListener('beforeunload',e=>{if(dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
+ window.addEventListener('beforeunload',e=>{if(backupBusy||dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
 }catch(e){const message='FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200);announce(message,'error');const note=$('#login-mode-note');if(note)note.textContent=message;}
