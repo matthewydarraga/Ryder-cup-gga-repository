@@ -96,7 +96,7 @@ else try{
    tx.set(scoreRef,{matchId:id,hole,winner,updatedAt:fireMod.serverTimestamp()});
   });
   if(ticket!==epoch)return;
-  window.GGA_LIVE_RESULTS.set(id+'_'+hole,winner);window.GGA_LIVE?.render();
+  window.GGA_LIVE_RESULTS.set(id+'_'+hole,winner);if(gga.refreshResults)gga.refreshResults();else window.GGA_LIVE?.render();
  };
  if(window.GGA_LINEUP)window.GGA_CHANGE_LINEUP=window.GGA_LINEUP.createCloudAPI({sdk:fireMod,db,
   assertReady:()=>{if(!ownerAllowed()||dirty||saving||backupBusy||pendingBackup)throw Error('Wait for all owner changes to sync before changing a lineup.');},
@@ -209,7 +209,7 @@ else try{
     if(ticket!==epoch||backupBusy||snap.metadata?.hasPendingWrites)return;
     if(snap.metadata?.fromCache){scoresReady=false;window.GGA_LIVE?.render();return;}
     for(const c of snap.docChanges()){if(c.type==='removed')window.GGA_LIVE_RESULTS.delete(c.doc.id);else window.GGA_LIVE_RESULTS.set(c.doc.id,c.doc.data().winner);}
-    scoresReady=true;window.GGA_LIVE?.render();
+    scoresReady=true;if(gga.refreshResults)gga.refreshResults();else window.GGA_LIVE?.render();
    },e=>{scoresReady=false;announce('SCORING NOT CONNECTED · '+errorText(e)+' · Match permissions must be published in Firebase.','error');window.GGA_LIVE?.render();}));
    stops.push(fireMod.onSnapshot(fireMod.collection(db,'profiles'),{includeMetadataChanges:true},snap=>{
     if(ticket!==epoch||backupBusy||snap.metadata?.hasPendingWrites)return;
