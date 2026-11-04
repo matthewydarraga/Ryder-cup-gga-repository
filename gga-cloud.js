@@ -77,7 +77,7 @@ else try{
    publishedMatches=matchMetadata(payload.liveCup);revision=(base??0)+1;lastContent=JSON.stringify(payload);dirty=changes!==serial;pendingBackup=null;gga.render();
    announce('SERVER CONFIRMED · Clubhouse and scoring saved.','live');
   }catch(e){if(ticket===epoch)fail(e);}
-  finally{saving=false;if(dirty&&!blocked&&ticket===epoch){clearTimeout(timer);timer=setTimeout(()=>publish(),650);}}
+  finally{saving=false;if(dirty&&!blocked&&ticket===epoch){clearTimeout(timer);timer=setTimeout(()=>publish(),650);}else if(!blocked&&ticket===epoch)void flushScores();}
  }
  window.GGA_AFTER_SAVE=()=>{
   if(backupBusy||suppress||!ownerAllowed()||revision===null||JSON.stringify(content())===lastContent)return;
@@ -145,7 +145,7 @@ else try{
   onApplied:result=>{patch(result.shared,result.privateData);announce('SERVER CONFIRMED · Lineup changed and previous results saved in history.','live');}
  });
  window.GGA_CLOUD_SIGNOUT=async()=>{
-  if(backupBusy||dirty||saving||pendingBackup||outbox?.list().length)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
+  if(backupBusy||dirty||saving||pendingBackup||outbox?.list().length)return gga.notify('Resolve queued scores and wait for owner changes to sync before signing out.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
  };
  // The public alias is only an Auth identifier. Assigned PINs never ship in source.
