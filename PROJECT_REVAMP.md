@@ -34,7 +34,7 @@ Validation: `npm test` covers all team sizes, required decisions/reasons, cancel
 
 ## Step 3 — Unified results and player statistics
 
-Implemented on `codex/project-revamp-step-3`.
+Deployed through PR #7 (merge `f9f3e795f6e26d1be3018f6a2b6e2218309a500b`).
 
 - `results-core.js` is the shared read-only scoring model for Live, player statistics, player cards/profiles, prior-year draft rankings, 2026 recap records and complete-backup materialization/summary.
 - 2027 official results use live matchups only. The old independent 2027 owner scoring editor now directs the owner to Live; its legacy data remains preserved in backups. Practice rounds are explicitly filtered out of official records. Archived substitution snapshots do not add appearances or points; a retained-results substitution credits the current official lineup.
@@ -47,13 +47,26 @@ Implemented on `codex/project-revamp-step-3`.
 
 Validation: `npm test` includes golden 2026 records, original margins, benchmark/tie handling, 1v1–4v4 point allocation, pending/corrected/cleared results, paused rounds, practice/history exclusion, prior-year ranks, backup round trips, profile markup, and remote score refresh without write echo. Existing emulator permission/backup/substitution checks pass. Local browser QA created a disposable official-results round: five hole wins secured one front-nine point; Live, statistics and Matthew's profile agreed while the overall match remained in progress. Production scoring was not modified during testing.
 
+## Step 4 — Durable offline score entry
+
+Implemented on `codex/project-revamp-step-4`.
+
+- `offline-scores.js` stores pending hole edits in localStorage, isolated by Firebase project and account UID. A successful device save is required before reporting that a score is queued. Reload recovers interrupted sends and retains pending/conflict/blocked edits.
+- After signing in online and receiving the live setup/scorecard, players can keep entering scores during a connection drop. Reconnecting, receiving server snapshots, or pressing Retry resumes the queue; temporary failures retry while the app is open. A fresh offline launch cannot authenticate or receive a fresh setup: reopen online and sign in to the same account to resume saved edits. No service-worker background sync or guaranteed operation after clearing browser data/private browsing is claimed.
+- Pending edits display their match, hole, selected side/tie/clear, and status above the app. Confirmed standings/statistics remain separate until the server confirms the score. Conflicts require reviewing the displayed server result and explicitly choosing to replace it or discarding the queued edit.
+- Each replay transaction rereads match permissions and the hole. It checks the original winner and exact server timestamp; a different newer result is never overwritten automatically. An identical desired result is treated as already satisfied, making retries safe after a lost acknowledgement. Fresh lineup IDs, paused matches and removed participants block stale queued edits.
+- Multiple unsent changes to one hole coalesce while preserving the original comparison. Sending/conflicted edits cannot be silently replaced. Sign-out, backup restore and lineup changes wait for the local queue to be resolved. Web Locks prevent two modern browser tabs scoring from the same account simultaneously; use one scoring tab on older browsers without this API.
+- No credentials are stored in the outbox. No Firestore rules, services or billing changes are required. Pending edits are device recovery data, not part of a confirmed complete-cloud backup.
+
+Validation: `npm test` covers reload/interrupted-send recovery, per-account isolation, reconnect replay, unavailable storage, coalescing, conflict holds/explicit retry, clears, paused permissions, and duplicate flushes. The existing full Firestore emulator suite passes. Local browser QA used disposable SDK data to queue a hole while disconnected, reconnect with a conflicting result, reload with the conflict intact, and explicitly resolve it to server confirmation. No production score was changed by testing.
+
 ## Next step
 
-Step 4: durable offline score entry. Persist pending edits on the phone; show pending/synced/conflict states; replay safely after reconnecting; never silently overwrite a newer result. Preserve the shared results model, existing backups and substitution history.
+Step 5: finalization states. Add explicit round/match completion and owner-controlled locking/reopening, keeping queued score handling and participant permissions consistent.
 
 ## Remaining roadmap
 
-Phase 1 remaining: durable offline scoring; finalization states; score history and undo; form preservation; consistent year/event selection; session/status copy; permission regression tests.
+Phase 1 remaining: finalization states; score history and undo; form preservation; consistent year/event selection; session/status copy; permission regression tests.
 
 Phase 2: My Match home, sticky team standings and winning target, round/day filters, compact match cards and final margins, one-hole scoring, explicit playing formats, separate owner controls, five bottom destinations, clear strengths/statistics, accessible mobile layouts and direct match links.
 

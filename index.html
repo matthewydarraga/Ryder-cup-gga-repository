@@ -417,7 +417,7 @@ window.GGA={getResults:(year=state.activeYear,options={})=>window.GGA_RESULTS.ev
 window.GGA.openMyProfile=()=>{if(!currentUser()){showTab('profile');openLogin();return;}selectedPlayer=currentUser().id;showTab('players');document.body.dataset.profileView='true';renderPlayerProfile();if(window.GGA_ON_TAB)window.GGA_ON_TAB('profile');};
 render();save();
 })();
-</script><script src="./ghin-snapshot.js?v=20261103-manual-stats-r2"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261104-revamp-3"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261104-revamp-3"></script><script src="./lineup-tools.js?v=20261104-revamp-2"></script><script src="./live-scoring.js?v=20261104-revamp-3"></script><script>
+</script><script src="./ghin-snapshot.js?v=20261103-manual-stats-r2"></script><script src="./draft-board.js?v=20261022a"></script><script src="./gga-upgrade.js?v=20261104-revamp-3"></script><script src="./player-strengths.js?v=20261022b"></script><script src="./player-dossier.js?v=20261104-revamp-3"></script><script src="./lineup-tools.js?v=20261104-revamp-2"></script><script src="./live-scoring.js?v=20261104-revamp-4"></script><script>
 (function(){
   if(!window.GGA_BACKEND_CONFIGURED)return;
   const status=document.getElementById('login-mode-note');
@@ -436,7 +436,7 @@ render();save();
     if(status)status.textContent='Could not connect. Please reload and try again.';
   });
 })();
-</script><script src="./backup-core.js?v=20261104-revamp-3"></script><script src="./backup-cloud.js?v=20261104-revamp-1"></script><script src="./backup-ui.js?v=20261104-revamp-3"></script><script type="module" src="./gga-cloud.js?v=20261104-revamp-3"></script></body></html>
+</script><script src="./backup-core.js?v=20261104-revamp-3"></script><script src="./backup-cloud.js?v=20261104-revamp-1"></script><script src="./backup-ui.js?v=20261104-revamp-3"></script><script src="./offline-scores.js?v=20261104-revamp-4"></script><script type="module" src="./gga-cloud.js?v=20261104-revamp-4"></script></body></html>
 
 
 

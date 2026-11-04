@@ -87,7 +87,7 @@ panel.addEventListener('change',async e=>{
  if(t.dataset.liveHole===undefined)return;
  const r=data().rounds.find(x=>x.id===t.dataset.liveRound),m=r?.matches.find(x=>x.id===t.dataset.liveMatch),i=Number(t.dataset.liveHole),value=t.value||null;
  if(!m||!editable(m,r)||!Number.isInteger(i)||i<0||i>17||![null,'A','B','halve'].includes(value))return;
- if(window.GGA_BACKEND_CONFIGURED){busy=true;render();try{await window.GGA_SAVE_HOLE(m.id,i,value,holes(m)[i]);g.notify('Hole saved and confirmed by server.');}catch(e){g.notify('Hole did not save: '+String(e.message||e));}finally{busy=false;render();}}
+ if(window.GGA_BACKEND_CONFIGURED){busy=true;render();try{const result=await window.GGA_SAVE_HOLE(m.id,i,value,holes(m)[i]);g.notify(result?.pending?'Score saved on this device; check the score queue for server confirmation.':'Hole saved and confirmed by server.');}catch(e){g.notify('Hole did not save: '+String(e.message||e));}finally{busy=false;render();}}
  else{m.holes[i]=value;commit('Hole saved on this device.');}
 });
 panel.addEventListener('click',e=>{
