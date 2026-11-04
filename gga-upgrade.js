@@ -16,23 +16,10 @@ const cup2027=()=>state.seasons.find(s=>s.year===2027);
 const teamName=side=>cup2027()?.teams?.[side]?.name||'Team '+side;
 const hasPick=id=>draft.picks.some(p=>p.playerId===id);
 const nameOf=id=>resolvePlayer(id)?.name||'Unassigned';
-function recordById(){
- const map=new Map(state.players.map(p=>[p.id,{player:p,played:0,w:0,l:0,h:0,singles:0,team:0}]));
- const season=matches2026();
- for(const round of season?.rounds||[])for(const match of round.matches||[]){
-   const win=match.manualWinner; if(!win)continue;
-   for(const side of ['a','b'])for(const pid of match[side]||[]){
-     if(!pid||!map.has(pid))continue;
-     const stat=map.get(pid);stat.played++;if((round.teamSize||1)===1)stat.singles++;else stat.team++;
-     if(win==='handicap'){if(side==='a')stat.l++;continue;}
-     if(win==='halve')stat.h++;else if(win===side.toUpperCase())stat.w++;else stat.l++;
-   }
- }
- return [...map.values()].sort((a,b)=>b.w-a.w||a.l-b.l||a.player.name.localeCompare(b.player.name));
-}
+function recordById(){return [...core.getResults(2026).stats.values()].map(s=>({...s,player:resolvePlayer(s.id),played:s.matches,team:s.teamMatches})).sort((a,b)=>b.w-a.w||a.l-b.l||a.player.name.localeCompare(b.player.name));}
 const statCard=(value,label)=>'<div><strong>'+esc(value)+'</strong><small>'+esc(label)+'</small></div>';
 function summary(){
- const s=matches2026(),rounds=s?.rounds||[],decided=rounds.flatMap(r=>r.matches||[]).filter(m=>!!m.manualWinner);
+ const model=core.getResults(2026),rounds=model.rounds,decided=model.matches.filter(m=>!!m.outcome);
  const roster=recordById(),wins=roster.reduce((n,x)=>n+x.w,0),leaders=roster.filter(x=>x.w===Math.max(...roster.map(r=>r.w)));
  $('#gga-home-stats').innerHTML=statCard(state.players.length,'GGA golfers')+statCard(decided.length,'2026 results')+statCard(rounds.length,'Tournament formats')+statCard('2027','Next Cup');
  $('#gga-history-stats').innerHTML=statCard(decided.length,'Recorded 2026 contests')+statCard(roster.filter(x=>x.played).length,'Golfer records')+statCard(rounds.length,'Rounds played')+statCard(leaders.length&&wins?leaders[0].w:'—','Top match-win count');
@@ -40,8 +27,8 @@ function summary(){
  $('#gga-history-rounds').innerHTML=rounds.map((r,i)=>'<h3 class="gga-history-section">Round '+(i+1)+' · '+esc(r.format||r.title)+'</h3><div class="gga-round-grid">'+(r.matches||[]).map(m=>{
    const a=(m.a||[]).map(nameOf).filter(x=>x!=='Unassigned').join(' & ')||'—';
    const b=(m.b||[]).map(nameOf).filter(x=>x!=='Unassigned').join(' & ')||'Handicap benchmark';
-   const winner=m.manualWinner==='handicap'?'Handicap challenge':m.manualWinner==='A'?a:m.manualWinner==='B'?b:'Result pending';
-   return '<article class="gga-result"><small>'+esc(a)+' vs '+esc(b)+'</small><h4>'+esc(winner)+(m.manualWinner&&m.manualWinner!=='handicap'?' wins':'')+'</h4><p>'+esc(m.manualMargin||'')+'</p><p>'+esc(m.manualNote||'')+'</p></article>';
+   const winner=m.outcome==='handicap'?'Handicap challenge':m.outcome==='halve'?'Match halved':m.outcome==='A'?a:m.outcome==='B'?b:'Result pending';
+   return '<article class="gga-result"><small>'+esc(a)+' vs '+esc(b)+'</small><h4>'+esc(winner)+(['A','B'].includes(m.outcome)?' wins':'')+'</h4><p>'+esc(m.manualMargin||'')+'</p><p>'+esc(m.manualNote||'')+'</p></article>';
  }).join('')+'</div>').join('');
 }
 function populateDraft(){window.GGA_DRAFT.render();}
