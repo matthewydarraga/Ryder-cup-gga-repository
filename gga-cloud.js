@@ -16,7 +16,7 @@ else try{
  const s=gga.getState(),profiles=new Map();
  const rosterPhotos=new Map(s.players.map(p=>[p.id,{officialPhoto:p.officialPhoto,officialPhotoFallback:p.officialPhotoFallback}]));
  let member=null,ready=false,suppress=false,revision=null,dirty=false,saving=false,blocked=false,timer=null,epoch=0,changes=0;
- let stops=[],lastContent='',pendingBackup=null,pendingRosterUsername=null,lastAuthError='';
+ let stops=[],lastContent='',pendingBackup=null,lastAuthError='';
  const errorText=e=>String(e?.message||e).slice(0,220);
  const ownerAllowed=()=>member?.role==='owner'&&member?.username==='matthew.ydarraga'&&auth.currentUser&&ready&&!blocked;
  function render(){const prev=suppress;suppress=true;try{gga.render();gga.save();}finally{suppress=prev;}}
@@ -74,54 +74,47 @@ else try{
   if(dirty||saving||pendingBackup)return gga.notify('Wait for confirmation or export a backup before signing out. Reload if syncing has stopped.');
   ++epoch;stop();await authMod.signOut(auth);gga.closeLogin();gga.showTab('home');
  };
+ // The public alias is only an Auth identifier. Assigned PINs never ship in source.
+ async function pinPassword(username,pin){
+  const enc=new TextEncoder();
+  const material=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode('GGA-PIN-v1:'+username),iterations:150000,hash:'SHA-256'},material,256);
+  return 'GGA!'+btoa(String.fromCharCode(...new Uint8Array(bits)));
+ }
  async function ensureMembership(user,username){
   const selected=s.players.find(p=>p.username===username);
-  if(!selected||username==='matthew.ydarraga')throw Error('Select your own player name. Matthew’s owner account must use Sign in.');
-  const ref=fireMod.doc(db,'members',user.uid),claimRef=fireMod.doc(db,'rosterClaims',username);
+  if(!selected||user.email!==username+'@gga-pin.invalid')throw Error('This account has no assigned player profile. Ask Matthew for your PIN.');
+  const ref=fireMod.doc(db,'members',user.uid);
   return fireMod.runTransaction(db,async tx=>{
    const existing=await tx.get(ref);
    if(existing.exists()){
-    const m=existing.data();if(m.username!==username||m.playerId!==selected.id)throw Error('This email already belongs to another roster profile. Use Sign in to open that profile.');if(!m.active)throw Error('This account is inactive. Ask Matthew to reactivate it.');return m;
+    const m=existing.data();if(m.username!==username||m.playerId!==selected.id)throw Error('This account belongs to another roster profile.');if(!m.active)throw Error('This account is inactive. Ask Matthew to reactivate it.');return m;
    }
-   const claim=await tx.get(claimRef);
-   if(claim.exists()&&claim.data().uid!==user.uid)throw Error('That player name already has an account. Sign in to it, or ask Matthew to correct the roster.');
    if(auth.currentUser?.uid!==user.uid)throw Error('Account changed. Sign in again.');
-   const m={username,playerId:selected.id,role:'player',active:true};
-   tx.set(ref,m);if(!claim.exists())tx.set(claimRef,{uid:user.uid,playerId:selected.id});
-   return m;
+   // Rules bind every pre-created Auth UID to its roster name and role.
+   const m={username,playerId:selected.id,role:username==='matthew.ydarraga'?'owner':'player',active:true};
+   tx.set(ref,m);return m;
   });
  }
- function loginMode(){$('#gga-login-guidance').textContent='Choose your roster name and use your own email and password.';$('#login-mode-note').textContent='New players get access automatically after creating an account. Each roster name can be registered once.';$('#login-submit').textContent='Sign in';}
- const signup=document.createElement('button');signup.type='button';signup.id='gga-create-account';signup.className='btn btn-secondary';signup.textContent='Create account';$('#login-form').append(signup);
- signup.addEventListener('click',async()=>{
-  $('#login-mode-note').textContent='Checking registration details…';
-  const email=$('#login-email').value.trim(),password=$('#login-pin').value;
-  const selected=s.players.find(p=>p.username===$('#login-player').value);
-  if(!selected){$('#login-mode-note').textContent='Select your player name first.';return;}
-  if(selected.username==='matthew.ydarraga'){$('#login-mode-note').textContent='Matthew’s owner account already exists. Use Sign in or Reset password by email.';return;}
-  if(!email||password.length<12){$('#login-mode-note').textContent='Enter a valid email and a password of at least 12 characters.';return;}
-  pendingRosterUsername=selected.username;lastAuthError='';signup.disabled=true;$('#login-mode-note').textContent='Contacting Firebase to create your account…';
-  try{
-   const user=auth.currentUser?.email?.toLowerCase()===email.toLowerCase()?auth.currentUser:(await authMod.createUserWithEmailAndPassword(auth,email,password)).user;
-   await ensureMembership(user,selected.username);await authMod.updateProfile(user,{displayName:selected.name});$('#login-pin').value='';
-   const message='ACCOUNT READY · '+selected.name+' can now sign in and edit their profile.';
-   announce(message,'preview');$('#login-mode-note').textContent=message;
-  }
-  catch(e){const code=String(e?.code||'unknown-error').replace(/^auth\//,'');const hints={'operation-not-allowed':'Enable Email/Password under Firebase Authentication → Sign-in method.','unauthorized-domain':'Add this website domain under Firebase Authentication → Settings → Authorized domains.','email-already-in-use':'This email already has an account. Sign in or reset your password.','weak-password':'Choose a stronger password.','invalid-email':'Enter a valid email address.','network-request-failed':'Check your connection and try again.','too-many-requests':'Too many attempts. Wait before trying again.','invalid-api-key':'Check the Firebase web app configuration.'};$('#login-mode-note').textContent='Registration failed ('+code+'). '+(hints[code]||errorText(e));}
-  finally{signup.disabled=false;pendingRosterUsername=null;}
- });
+ function loginMode(){
+  $('#gga-email-wrap').hidden=true;$('#login-email').required=false;$('#gga-reset-password').hidden=true;
+  $('#gga-password-label').textContent='Your 6-digit player PIN';
+  const input=$('#login-pin');input.pattern='[0-9]{6}';input.maxLength=6;input.minLength=6;input.inputMode='numeric';input.autocomplete='off';input.placeholder='Enter your assigned PIN';
+  $('#gga-login-guidance').textContent='Choose your name and enter the PIN Matthew gave you.';
+  $('#login-mode-note').textContent='Your account is ready. No email or account registration is needed. Ask Matthew if you need your PIN.';
+  $('#gga-login-security-note').textContent='Your PIN opens your own player profile on any device. Keep it private. Matthew’s PIN also opens Owner Studio.';
+  $('#login-submit').textContent='Sign in with PIN';
+ }
  window.GGA_REFRESH_LOGIN=loginMode;
  $('#login-form').addEventListener('submit',async e=>{
-  e.preventDefault();e.stopImmediatePropagation();lastAuthError='';$('#login-submit').disabled=true;
-  try{await authMod.signInWithEmailAndPassword(auth,$('#login-email').value.trim(),$('#login-pin').value);$('#login-pin').value='';}
-  catch{$('#login-mode-note').textContent='Unable to sign in. Check your email/password and network, or ask Matthew to check account setup.';}
+  e.preventDefault();e.stopImmediatePropagation();lastAuthError='';
+  const username=$('#login-player').value,pin=$('#login-pin').value.trim();
+  if(!s.players.some(p=>p.username===username)||!/^\d{6}$/.test(pin)){$('#login-mode-note').textContent='Select your name and enter your 6-digit PIN.';return;}
+  $('#login-submit').disabled=true;$('#login-mode-note').textContent='Signing in…';
+  try{const password=await pinPassword(username,pin);await authMod.signInWithEmailAndPassword(auth,username+'@gga-pin.invalid',password);$('#login-pin').value='';}
+  catch(e){const code=e?.code;$('#login-mode-note').textContent=code==='auth/too-many-requests'?'Too many attempts. Wait a few minutes before trying again.':code==='auth/network-request-failed'?'Connection failed. Check your internet and try again.':'Unable to sign in. Check your selected name and PIN, or ask Matthew for your assigned PIN.';}
   finally{$('#login-submit').disabled=false;}
  },true);
- $('#gga-reset-password').addEventListener('click',async()=>{
-  const email=$('#login-email').value.trim();if(!email)return gga.notify('Enter your account email first.');
-  try{await authMod.sendPasswordResetEmail(auth,email);gga.notify('If this account can receive a reset, check its email.');}
-  catch{gga.notify('Reset unavailable. Try later or ask Matthew to reset it in Firebase Authentication.');}
- });
  async function saveProfile(p,fields){
   if(!member||blocked||!ready||(member.playerId!==p.id&&member.role!=='owner'))throw Error('Sign in to your provisioned account.');
   try{await fireMod.setDoc(fireMod.doc(db,'profiles',p.id),{...fields,updatedAt:fireMod.serverTimestamp()},{merge:true});}
@@ -148,12 +141,12 @@ else try{
  },true);
  authMod.onAuthStateChanged(auth,async user=>{
   const ticket=++epoch;stop();
-  if(!user){announce(lastAuthError||'MEMBER SIGN-IN REQUIRED · Choose your roster name to sign in or create your account.',lastAuthError?'error':'preview');return;}
+  if(!user){announce(lastAuthError||'MEMBER SIGN-IN REQUIRED · Choose your name and enter your assigned 6-digit PIN.',lastAuthError?'error':'preview');return;}
   announce('VERIFYING · Checking your provisioned membership…','loading');
   const ref=fireMod.doc(db,'members',user.uid);
   try{
    const snap=await fireMod.getDocFromServer(ref);if(ticket!==epoch)return;
-   const username=pendingRosterUsername||s.players.find(p=>p.name===user.displayName)?.username||$('#login-player').value;
+   const username=user.email?.endsWith('@gga-pin.invalid')?user.email.slice(0,-'@gga-pin.invalid'.length):s.players.find(p=>p.name===user.displayName)?.username;
    const m=snap.exists()?snap.data():await ensureMembership(user,username);
    if(ticket!==epoch)return;
    const p=s.players.find(x=>x.id===m?.playerId&&x.username===m?.username);
@@ -190,5 +183,6 @@ else try{
  window.addEventListener('offline',()=>announce('OFFLINE · Changes are not confirmed. Reconnect before editing.','preview'));
  window.addEventListener('beforeunload',e=>{if(dirty||saving||pendingBackup){e.preventDefault();e.returnValue='';}});
 }catch(e){const message='FIREBASE SETUP ERROR · '+String(e?.message||e).slice(0,200);announce(message,'error');const note=$('#login-mode-note');if(note)note.textContent=message;}
+
 
 

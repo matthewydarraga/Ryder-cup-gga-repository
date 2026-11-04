@@ -1,3 +1,15 @@
+# Player PIN access (Spark)
+
+The live login uses a fixed roster name plus an assigned 6-digit PIN. Firebase Email/Password stays enabled as the underlying authentication provider, using reserved `username@gga-pin.invalid` identifiers. Players never need an email address or registration. PINs are privately provisioned; they must never be committed to this public repository.
+
+The browser derives a Firebase password using PBKDF2/SHA-256, 150,000 iterations, salt `GGA-PIN-v1:` plus username, 32 bytes, base64 with prefix `GGA!`. Security Rules bind every provisioned UID to exactly one roster profile and role. Membership is created automatically at first successful PIN sign-in. Existing membership/profile/tournament documents remain intact. Old roster claims are retained as historical data and no longer grant registration access. No client can create a new claim, change a membership role, or self-assign another player.
+
+PIN resets require coordinating an Auth credential reset and a privately delivered replacement PIN; never place PINs or their derived passwords in Firestore, GitHub, URLs, or analytics. Firebase Auth throttles repeated failed sign-in attempts. Keep the owner PIN private.
+
+No Functions, Cloud Storage, billing account, paid service, or plan change is required. Keep this project on Spark.
+
+## Previous setup reference
+
 # Spark-only console setup: gga-ryder-cup
 
 These are required activation actions, **not completed or verified by the code change**.
@@ -104,3 +116,4 @@ and repository cover assets instead.
 
 ## Automatic roster registration
 Players select their roster name and create an email/password account. The app atomically creates a player-only `members/{uid}` record and immutable `rosterClaims/{username}` binding. Each non-owner roster name can be registered once. Existing pending accounts can sign in with their saved roster name to complete registration. Matthew’s existing owner membership remains console-managed; signup cannot create or elevate an owner. To correct a mistaken claim, use the Firebase Console after verifying the person’s existing authentication UID. No Functions, Storage, billing account or paid service is used.
+

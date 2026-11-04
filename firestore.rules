@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
-  // members/{authUID}: console-only {username:string, playerId:string,
+  // members/{authUID}: pre-provisioned PIN identity or console-managed {username:string, playerId:string,
   // role:'owner'|'player', active:bool}. No emails, passwords or PIN hashes here.
   // public/clubhouse: member-readable official archive, draft and liveCup.
   // private/live2027: owner-only legacy match editor rounds. Same revision as clubhouse.
@@ -73,36 +73,41 @@ service cloud.firestore {
     && getAfter(/databases/$(database)/documents/public/clubhouse).data.revision==d.revision
     && getAfter(/databases/$(database)/documents/public/clubhouse).data.updatedAt==request.time;
   }
-  // Self-registration is limited to unclaimed non-owner roster slots.
-  // rosterClaims/{username}: immutable {uid:string, playerId:string}; no contact data.
-  function validPlayerMembership(d){
+  // Auth UIDs are public identifiers, not credentials. Only these pre-created
+  // PIN identities can initialize a membership; existing memberships stay intact.
+  function pinIdentities(){return {
+   'matthew.ydarraga':'YEcCCU6ovyd11eKrP6bM50CBmOE2',
+   'michael.rodriguez':'kmi43GYZjdSAD6IdtIvrntU3lyU2',
+   'jake.norris':'odxMVptzSJhpde1ffNyo4xjA15o2',
+   'brandon.durman':'BhDPNH4w1lR5nwQQXNKxoHfIxBx1',
+   'will.parker':'FeDQgK5NNMcKBCiCYxj8LNMkOds2',
+   'ryan.higgins':'f9HCZO9x7kPClPgDkYDRUicp2mx1',
+   'jordan.mcneely':'rCwG9NSeWyYFOP8ooyJBOTLZ5vi1',
+   'reid.mixon':'fQhOeejdZrMuX9hiiEpXVECiVgJ2',
+   'zach.cousar':'JPYKbcKTEBM0AlQMS9Op94perDS2',
+   'jack.abraham':'GgfBmgOthXelPjlE73q4qye5RVU2',
+   'peyton.braswell':'DLiHrLleaaeWWrKJGR6LbIT6R0t2',
+   'nate.cox':'DVMgwShJuKbG4ifaFw4AWB8RDlB3',
+   'kody.russey':'lwdqzuUi1dRZiwqaS5wfuRNdtrr2'
+  };}
+  function validPINMembership(d){
    return d.keys().hasAll(['username','playerId','role','active'])
     && d.keys().hasOnly(['username','playerId','role','active'])
-    && d.username is string && d.username in roster() && d.username!='matthew.ydarraga'
-    && d.playerId==roster()[d.username] && d.role=='player' && d.active==true;
-  }
-  function validClaim(d,username){
-   return d.keys().hasAll(['uid','playerId']) && d.keys().hasOnly(['uid','playerId'])
-    && username in roster() && username!='matthew.ydarraga'
-    && d.uid is string && d.uid==request.auth.uid && d.uid.size()<=128
-    && d.playerId==roster()[username];
+    && d.username is string && d.username in roster()
+    && request.auth.uid==pinIdentities()[d.username]
+    && request.auth.token.email==d.username+'@gga-pin.invalid'
+    && d.playerId==roster()[d.username] && d.active==true
+    && d.role==(d.username=='matthew.ydarraga'?'owner':'player');
   }
   match /members/{uid} {
    allow get: if request.auth!=null && request.auth.uid==uid;
    allow create: if request.auth!=null && request.auth.uid==uid
-    && validPlayerMembership(request.resource.data)
-    && getAfter(/databases/$(database)/documents/rosterClaims/$(request.resource.data.username)).data.uid==uid
-    && getAfter(/databases/$(database)/documents/rosterClaims/$(request.resource.data.username)).data.playerId==request.resource.data.playerId;
+    && validPINMembership(request.resource.data);
    allow list,update,delete: if false;
   }
   match /rosterClaims/{username} {
    allow get: if request.auth!=null;
-   allow create: if request.auth!=null && validClaim(request.resource.data,username)
-    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.username==username
-    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId==request.resource.data.playerId
-    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.role=='player'
-    && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.active==true;
-   allow list,update,delete: if false;
+   allow list,create,update,delete: if false;
   }
   match /public/clubhouse {
    allow read: if active();
@@ -124,5 +129,6 @@ service cloud.firestore {
   match /{document=**} {allow read,write: if false;}
  }
 }
+
 
 

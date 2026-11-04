@@ -1,4 +1,5 @@
 // Adapter integration with deterministic SDK doubles. Does not prove deployed security.
+const {webcrypto}=require('node:crypto');
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 const tick=()=>new Promise(r=>setImmediate(r));
 async function harness(pending=false){
@@ -16,13 +17,13 @@ async function harness(pending=false){
   setDoc:async()=>{writes++;}
  };
  const g={getState:()=>state,render(){},save(){ctx.window.GGA_AFTER_SAVE?.();},setSignedIn:u=>signed=u,notify(){},closeLogin(){},showTab(){}};
- const ctx={window:{GGA:g,GGA_BACKEND_CONFIGURED:true,FIREBASE_CONFIG:{},addEventListener:(t,f)=>events[t]=f},document:{querySelector:node,createElement:()=>node('banner'),addEventListener:(t,f)=>events[t]=f},console,confirm:()=>true,setTimeout:f=>(timers.push(f),timers.length),clearTimeout(){},URL,Map,JSON,
+ const ctx={crypto:webcrypto,TextEncoder,Uint8Array,btoa,window:{GGA:g,GGA_BACKEND_CONFIGURED:true,FIREBASE_CONFIG:{},addEventListener:(t,f)=>events[t]=f},document:{querySelector:node,createElement:()=>node('banner'),addEventListener:(t,f)=>events[t]=f},console,confirm:()=>true,setTimeout:f=>(timers.push(f),timers.length),clearTimeout(){},URL,Map,JSON,
   modules:[{initializeApp:()=>({})},{getAuth:()=>auth,setPersistence:async()=>{},browserSessionPersistence:'session',onAuthStateChanged:(_,f)=>authCallback=f,signOut:async()=>{},signInWithEmailAndPassword:async()=>{},sendPasswordResetEmail:async()=>{}},fire]};
  const source=fs.readFileSync('gga-cloud.js','utf8').replace(/const \[appMod,authMod,fireMod\]=await Promise\.all\(\[[\s\S]*?\]\);/,'const [appMod,authMod,fireMod]=modules;');
  await vm.runInNewContext('(async()=>{'+source+'})()',ctx);
  return {ctx,state,events,listeners,node,snapshot,membership,auth,
   setClaim:(username,uid)=>claims.set(username,{uid}),
-  login:async()=>{if(pending)node('#login-player').value='reid.mixon';auth.currentUser={uid:'owner'};await authCallback(auth.currentUser);},
+  login:async()=>{if(pending)node('#login-player').value='reid.mixon';auth.currentUser={uid:'owner',email:pending?'reid.mixon@gga-pin.invalid':'matthew.ydarraga@gga-pin.invalid'};await authCallback(auth.currentUser);},
   emit:async()=>{await listeners.get('public/clubhouse')(snapshot(shared));},
   flush:async()=>{const f=timers.pop();timers.length=0;if(f){f();await tick();await tick();}},
   get signed(){return signed},get writes(){return writes},get shared(){return shared},get priv(){return priv},
@@ -43,12 +44,21 @@ async function harness(pending=false){
  const failed=await harness();await failed.login();await failed.emit();failed.setFailure('permission-denied');failed.events.click({target});await tick();await tick();assert.equal(failed.writes,0);assert.equal(failed.ctx.window.GGA_BACKEND_AUTHORIZED,false);
  const revoked=await harness();await revoked.login();await revoked.emit();revoked.listeners.get('members/owner')(revoked.snapshot({...revoked.membership,active:false}));assert.equal(revoked.signed,'');assert.equal(revoked.ctx.window.GGA_BACKEND_AUTHORIZED,false);assert.equal(revoked.listeners.size,0);
  const member=await harness();member.membership.role='player';await member.login();await member.emit();assert.equal(member.ctx.window.GGA_BACKEND_AUTHORIZED,false);member.state.clubhouse.hero='Forged';member.ctx.window.GGA.save();await member.flush();assert.equal(member.writes,0);
- const pending=await harness(true);await pending.login();await pending.emit();assert.equal(pending.signed,'reid.mixon');assert.equal(pending.ctx.window.GGA_BACKEND_AUTHORIZED,false);assert.equal(pending.writes,2,'Pending player must receive paired membership and claim');
- const taken=await harness(true);taken.setClaim('reid.mixon','someone-else');await taken.login();assert.equal(taken.signed,'');assert.equal(taken.writes,0,'Claimed roster name must not be reassigned');
- const signup=await harness(true);let savedName=null,accountsCreated=0;
- signup.ctx.modules[1].createUserWithEmailAndPassword=async()=>{accountsCreated++;const user={uid:'new-player'};signup.auth.currentUser=user;return {user};};signup.ctx.modules[1].updateProfile=async(user,data)=>{savedName=data.displayName;};
- signup.node('#login-player').value='matthew.ydarraga';signup.node('#login-email').value='example@example.com';signup.node('#login-pin').value='test-password-only';await signup.events['banner:click']();assert.equal(accountsCreated,0,'Owner signup must be reserved');
- signup.node('#login-player').value='reid.mixon';await signup.events['banner:click']();assert.equal(savedName,'Reid Mixon');assert.equal(signup.writes,2);assert(signup.node('#login-mode-note').textContent.includes('ACCOUNT READY'));assert(!signup.ctx.window.GGA_BACKEND_AUTHORIZED);
- console.log('PASS: explicit first publish, atomic revisions, no snapshot echo, stale owner conflict, failed writes, revocation, member write gating, automatic player signup, duplicate name rejection and reserved owner signup');
+ const pending=await harness(true);await pending.login();await pending.emit();assert.equal(pending.signed,'reid.mixon');assert.equal(pending.ctx.window.GGA_BACKEND_AUTHORIZED,false);assert.equal(pending.writes,1,'Assigned PIN user initializes only its membership');
+ const pin=await harness(true);let signin=null;
+ pin.ctx.modules[1].signInWithEmailAndPassword=async(_,email,password)=>{signin={email,password};};
+ pin.node('#login-player').value='reid.mixon';pin.node('#login-pin').value='123';
+ await pin.events['#login-form:submit']({preventDefault(){},stopImmediatePropagation(){}});assert.equal(signin,null);
+ pin.node('#login-pin').value='123456';await pin.events['#login-form:submit']({preventDefault(){},stopImmediatePropagation(){}});
+ assert.equal(signin.email,'reid.mixon@gga-pin.invalid');
+ const expected='GGA!'+require('node:crypto').pbkdf2Sync('123456','GGA-PIN-v1:reid.mixon',150000,32,'sha256').toString('base64');
+ assert.equal(signin.password,expected,'WebCrypto must match provisioning KDF');
+ assert.equal(pin.node('#login-email').required,false);assert.equal(pin.node('#gga-email-wrap').hidden,true);
+ pin.ctx.modules[1].signInWithEmailAndPassword=async()=>{throw {code:'auth/invalid-credential'};};
+ pin.node('#login-pin').value='000000';await pin.events['#login-form:submit']({preventDefault(){},stopImmediatePropagation(){}});
+ assert(pin.node('#login-mode-note').textContent.includes('selected name and PIN'));
+ assert.equal(pin.node('#login-submit').disabled,false);
+ console.log('PASS: explicit first publish, atomic revisions, no snapshot echo, stale owner conflict, failed writes, revocation, member write gating, PIN KDF compatibility, six-digit validation, hidden email, failed PIN feedback and membership initialization');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
 

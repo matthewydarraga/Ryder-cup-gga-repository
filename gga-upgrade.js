@@ -55,7 +55,7 @@ function ownerEditor(){
  $('#gga-owner-history').innerHTML=r.map((round,ri)=>'<h4>'+esc(round.title)+'</h4>'+round.matches.map((m,mi)=>'<div class="gga-admin-result"><div><strong>'+esc((m.a||[]).map(nameOf).join(' & '))+'</strong><br><small>vs '+esc((m.b||[]).map(nameOf).join(' & ')||'Benchmark')+'</small></div><select data-hist-round="'+ri+'" data-hist-match="'+mi+'" aria-label="Match winner"><option value="" '+(!m.manualWinner?'selected':'')+'>Unknown</option><option value="A" '+(m.manualWinner==='A'?'selected':'')+'>Side A</option><option value="B" '+(m.manualWinner==='B'?'selected':'')+'>Side B</option><option value="halve" '+(m.manualWinner==='halve'?'selected':'')+'>Halved</option><option value="handicap" '+(m.manualWinner==='handicap'?'selected':'')+'>Handicap loss</option></select><input data-hist-note="'+ri+'" data-hist-index="'+mi+'" aria-label="Match note" value="'+esc(m.manualNote||'')+'" placeholder="Historical note"></div>').join('')).join('');
  let pins={};try{pins=JSON.parse(localStorage.getItem(core.AUTH_STORE))||{}}catch{}
  if(window.GGA_BACKEND_CONFIGURED){
-  $('#gga-owner-account-controls').innerHTML='<p>Players register automatically by selecting an unclaimed roster name. Disable accounts or correct mistaken registrations in Firebase. Owner access is reserved for Matthew.</p><p><a href="https://console.firebase.google.com/project/gga-ryder-cup/authentication/users" target="_blank" rel="noopener">Open Firebase account management</a></p>'+(window.GGA_BACKEND_API?.canPublishFirst()?'<button class="btn btn-gold" id="gga-publish-first">Publish first shared clubhouse from this device</button>':'');
+  $('#gga-owner-account-controls').innerHTML='<p>Players sign in by selecting their name and entering their assigned 6-digit PIN. No email registration or approval is needed. Owner access is reserved for Matthew.</p><p><a href="https://console.firebase.google.com/project/gga-ryder-cup/authentication/users" target="_blank" rel="noopener">Open Firebase account management</a></p>'+(window.GGA_BACKEND_API?.canPublishFirst()?'<button class="btn btn-gold" id="gga-publish-first">Publish first shared clubhouse from this device</button>':'');
  }else $('#gga-owner-account-controls').innerHTML=state.players.map(p=>'<div><strong>'+esc(p.name)+'</strong><small>Device preview only</small></div>').join('');
 }
 function visibility(){
@@ -121,5 +121,6 @@ function applyBranding(){
 }
 renderUpgrade();const initialTab=new URLSearchParams(window.location.search).get('tab');core.showTab(['home','history','draft','players','rankings','forge','stats'].includes(initialTab)?initialTab:'home');
 })();
+
 
 
