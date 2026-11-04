@@ -155,3 +155,9 @@ body{background:#0b0c13!important;color:#f3f3fa!important}
  .gga-dossier-bio h2{font-size:clamp(38px,9.5vw,54px)!important}
  .gga-dossier-layout{padding:10px!important}
 }
+
+/* Tournament honors recorded by the GGA organizer. */
+.gga-champion-badge{display:block;width:fit-content;max-width:100%;margin-top:6px;padding:4px 7px;border:1px solid #c7a34f;border-radius:6px;background:#3b321b;color:#f7d77b;font-size:10px;font-weight:750;line-height:1.4;white-space:normal}
+.gga-dossier-trophies{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.gga-dossier-trophies .gga-championship-honor{padding:12px 8px;border:1px solid #ad8a35;border-radius:10px;background:#b58a2012}
+.gga-dossier-trophies .gga-championship-honor b{color:#f7d77b;font-size:12px;line-height:1.5}
