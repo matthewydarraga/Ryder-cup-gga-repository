@@ -6,7 +6,7 @@ async function harness(pending=false){
  const nodes=new Map(),events={},listeners=new Map(),timers=[];
  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,dataset:{},addEventListener:(t,f)=>events[id+':'+t]=f,prepend(){},append(){}});return nodes.get(id);};
  const state={players:[{id:'player-matthew-ydarraga',username:'matthew.ydarraga',name:'Matthew'},{id:'player-reid-mixon',username:'reid.mixon',name:'Reid Mixon'}],seasons:[{year:2026,rounds:[]},{year:2027,location:'LA',date:'',teams:{},roster:{},rounds:[]}],clubhouse:{hero:'Initial'},draft2027:{phase:'pre',picks:[]},handicapWeight:70};
- let signed='',writes=0,txFailure=null,current=null,authCallback;
+ let resultRefreshes=0;let signed='',writes=0,txFailure=null,current=null,authCallback;
  const auth={currentUser:null},snapshot=(d,meta={})=>({exists:()=>!!d,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false,...meta}});
  const membership={active:true,username:'matthew.ydarraga',playerId:'player-matthew-ydarraga',role:'owner'};
  let shared=null,priv=null,savedMember=pending?null:membership;const claims=new Map(),records=new Map();
@@ -16,7 +16,7 @@ async function harness(pending=false){
   runTransaction:async(_,fn)=>{if(txFailure)throw Error(txFailure);const staged=[];const result=await fn({get:async ref=>snapshot(ref.startsWith('members/')?savedMember:ref.startsWith('rosterClaims/')?claims.get(ref.split('/')[1]):ref.startsWith('live')?records.get(ref):shared),set:(ref,d)=>staged.push([ref,d])});for(const [r,d]of staged){if(r==='public/clubhouse')shared=d;else if(r.startsWith('members/'))savedMember=d;else if(r.startsWith('rosterClaims/'))claims.set(r.split('/')[1],d);else if(r.startsWith('live'))records.set(r,d);else priv=d;writes++;}return result;},
   setDoc:async()=>{writes++;}
  };
- const g={getState:()=>state,render(){},save(){ctx.window.GGA_AFTER_SAVE?.();},setSignedIn:u=>signed=u,notify(){},closeLogin(){},showTab(){}};
+ const g={getState:()=>state,refreshResults:()=>resultRefreshes++,render(){},save(){ctx.window.GGA_AFTER_SAVE?.();},setSignedIn:u=>signed=u,notify(){},closeLogin(){},showTab(){}};
  const ctx={crypto:webcrypto,TextEncoder,Uint8Array,btoa,window:{GGA:g,GGA_BACKEND_CONFIGURED:true,FIREBASE_CONFIG:{},addEventListener:(t,f)=>events[t]=f},document:{querySelector:node,createElement:()=>node('banner'),addEventListener:(t,f)=>events[t]=f},console,confirm:()=>true,setTimeout:f=>(timers.push(f),timers.length),clearTimeout(){},URL,Map,JSON,
   modules:[{initializeApp:()=>({})},{getAuth:()=>auth,setPersistence:async()=>{},browserSessionPersistence:'session',onAuthStateChanged:(_,f)=>authCallback=f,signOut:async()=>{},signInWithEmailAndPassword:async()=>{},sendPasswordResetEmail:async()=>{}},fire]};
  const source=fs.readFileSync('gga-cloud.js','utf8').replace(/const \[appMod,authMod,fireMod\]=await Promise\.all\(\[[\s\S]*?\]\);/,'const [appMod,authMod,fireMod]=modules;');
@@ -26,7 +26,7 @@ async function harness(pending=false){
   login:async()=>{if(pending)node('#login-player').value='reid.mixon';auth.currentUser={uid:'owner',email:pending?'reid.mixon@gga-pin.invalid':'matthew.ydarraga@gga-pin.invalid'};await authCallback(auth.currentUser);},
   emit:async()=>{await listeners.get('public/clubhouse')(snapshot(shared));},
   flush:async()=>{const f=timers.pop();timers.length=0;if(f){f();await tick();await tick();}},
-  get signed(){return signed},get writes(){return writes},get shared(){return shared},get priv(){return priv},
+  get resultRefreshes(){return resultRefreshes},get signed(){return signed},get writes(){return writes},get shared(){return shared},get priv(){return priv},
   setFailure:x=>txFailure=x,setShared:x=>shared=x,
  };
 }
@@ -75,6 +75,7 @@ async function harness(pending=false){
  scoring.records.get('liveMatches/match-one').started=true;
  scoring.state.liveCup.rounds[0].matches=[];scoring.ctx.window.GGA.save();await scoring.flush();
  assert.equal(scoring.records.get('liveMatches/match-one').active,false,'Removed matches lose score access');
+ const refreshBefore=scoring.resultRefreshes,writesBefore=scoring.writes;scoring.listeners.get('liveScores')({metadata:{fromCache:false},docChanges:()=>[{type:'modified',doc:{id:'match-one_0',data:()=>({winner:'B'})}}]});assert.equal(scoring.resultRefreshes,refreshBefore+1,'Remote scores must refresh player/profile/statistics consumers');assert.equal(scoring.writes,writesBefore,'Result refresh must not echo a cloud write');
  console.log('PASS: atomic matchup metadata, independent hole writes, concurrent-edit rejection, score correction, paused/removed matches');
  console.log('PASS: explicit first publish, atomic revisions, no snapshot echo, stale owner conflict, failed writes, revocation, member write gating, PIN KDF compatibility, six-digit validation, hidden email, failed PIN feedback and membership initialization');
 })().catch(e=>{console.error(e);process.exitCode=1;});
