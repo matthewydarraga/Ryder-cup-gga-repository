@@ -9,3 +9,6 @@ const course={source:'OpenGolfAPI',sourceId:source.id,name:source.course_name,te
 assert(c.validCourse(course));assert(!c.validCourse({...course,slope:999}));
 (async()=>{const f=fixture();f.state.seasons.find(s=>s.year===2027).course=course;const payload={state:f.state,profiles:{},liveMatches:[],liveScores:[],matchStates:[],matchAudit:[]};const file=await b.create(payload,f.state.players,'gga-ryder-cup');const parsed=await b.parse(JSON.stringify(file),f.state.players,'gga-ryder-cup');assert.deepEqual(b.restorePlan(parsed,f.state.players,()=> 'new-id').shared.season2027.course,course);assert(fs.readFileSync('gga-upgrade.js','utf8').includes("['courses','Golf Courses']"));assert(fs.readFileSync('gga-cloud.js','utf8').includes('course:future.course'));console.log('PASS: recorded OpenGolfAPI full-detail tees, combo yardages, missing data, numeric hole counts, validation, shared persistence and course backup round trip');})().catch(e=>{console.error(e);process.exitCode=1;});
 module.exports={course};
+
+const generic=structuredClone(source);generic.holes_data[0].yards=999;delete generic.holes_data[0].yardages['black/blue'];assert.equal(c.holeArray(tees[1],generic)[0].yards,null,'Generic yardage must not leak into selected tees');
+assert(c.importProblem({...tees[0],par:18},source).includes('par'),'Reject conflicting par totals');

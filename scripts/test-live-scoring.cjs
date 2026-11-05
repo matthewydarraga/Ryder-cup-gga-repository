@@ -36,12 +36,19 @@ const target={dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},va
  owner=true;click({liveStart:r.id});target.value='A';await handlers.change({target});assert.equal(r.matches[0].holes[0],'B','Paused round is not editable');
  click({liveStart:r.id});submit({dataset:{liveAdd:r.id,edit:r.matches[0].id},values:{...config,'points-front':'2.5'}});assert.equal(r.matches[0].points.front,2.5,'Owner may change active match points');
  submit({dataset:{liveAdd:r.id,edit:r.matches[0].id},values:{...config,'points-front':'-1'}});assert.equal(r.matches[0].points.front,2.5,'Invalid points rejected');
- click({liveOpen:r.matches[0].id});assert(panel.innerHTML.includes('Hole 18'));click({},['data-live-overview']);assert(panel.innerHTML.includes('Open match &amp; scorecard')||panel.innerHTML.includes('Open match & scorecard'));
+ click({liveOpen:r.matches[0].id});assert(panel.innerHTML.includes('Hole 18'));click({},['data-live-overview']);click({liveView:'all'});assert(panel.innerHTML.includes('Open match &amp; scorecard')||panel.innerHTML.includes('Open match & scorecard'));
  click({liveMode:'test'});click({},['data-live-mock']);assert.equal(state.liveCup.rounds.filter(r=>r.test).length,4);assert.equal(state.liveCup.rounds.filter(r=>!r.test).length,1);
  for(const size of [1,2,3,4]){const mock=state.liveCup.rounds.find(r=>r.test&&r.matches[0].a.length===size);assert(mock);assert.equal(mock.matches[0].b.length,size);assert.equal(Object.values(mock.matches[0].points).reduce((a,b)=>a+b,0),3);}
  click({},['data-live-mock']);assert.equal(state.liveCup.rounds.length,5,'Mock creation is idempotent');
  assert(panel.innerHTML.includes('PRACTICE ONLY'));click({liveMode:'official'});assert(!panel.innerHTML.includes('Mock 2027 · 4v4'));
  win.GGA_LIVE_RESULTS=new Map([[r.matches[0].id+'_0','halve']]);win.GGA_LIVE.render();assert(panel.innerHTML.includes('Tied 1'),'Server score overlay renders');
+ click({liveView:'mine'});assert(panel.innerHTML.includes('Hole 18'),'My Round opens participant scorecard');
+ r.date='2026-11-05';click({liveView:'day'});await handlers.change({target:{id:'live-day',value:'2026-11-05',dataset:{}}});assert(panel.innerHTML.includes('Read-only spectator view'),'Day view uses compact live cards');
+ await handlers.change({target:{id:'live-day',value:'2026-11-06',dataset:{}}});assert(panel.innerHTML.includes('No rounds scheduled for this day'));
+ click({liveView:'mine'});await click({holeNav:'5',holeMatch:r.matches[0].id});assert(panel.innerHTML.includes('Hole 6'));
+ await click({holeResult:'A',scoreMatch:r.matches[0].id,scoreRound:r.id,scoreHole:'5'});assert.equal(r.matches[0].holes[5],'A','Large result button saves selected hole');
+ owner=false;user='p2';await click({holeResult:'B',scoreMatch:r.matches[0].id,scoreRound:r.id,scoreHole:'5'});assert.equal(r.matches[0].holes[5],'A','Spectator cannot use score button');owner=true;
+ click({liveView:'all'});
  click({liveRemove:r.matches[0].id,liveRound:r.id});assert.equal(r.matches.length,0);
  const neutral=predict(empty(),[{}],[{}]);assert(Math.abs(neutral.a-neutral.b)<1e-9);assert(predict(empty(),[{handicap:5}],[{handicap:20}]).a>neutral.a);
  console.log('PASS: legacy/new points, ties, custom weights, early clinches, 1v1–4v4 mocks, isolation, duplicate prevention, owner edits, participant permissions, pause, match/overall views and cloud score overlay');
