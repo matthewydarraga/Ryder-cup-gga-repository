@@ -89,3 +89,7 @@ Validation: application tests and the complete Firestore emulator suite passed l
 Release gate: Firebase CLI reports no authorized accounts. Publish compatible firestore.rules to `gga-ryder-cup` before merging this branch or deploying Pages. No production records or rules were changed. Last inspected production source is b839e005d1c6137374c8f9dfb9ff01178ddd7229. The public Pages fetch could not be independently verified in this session.
 
 Next actions: finish PR CI; authenticate Firebase; deploy rules; merge/deploy Pages; verify owner and participant flows on separate signed-in devices, including offline edits across final/reopen. Preserve tightened rules if rolling back the site; older clients cannot score reopened matches until refreshed. Then continue Step 6 (score-change history and safe undo).
+
+## Release update — 2026-11-05
+
+PR #11 source commit 85383aed594db05ae4e0243f6527289ac8288ffe passed GitHub Actions run 42076134383, including application tests, full emulator permissions and headless Chrome rendering. Firebase CLI authentication completed, and the tested firestore.rules compiled and deployed successfully to gga-ryder-cup before site merge. No billing, account or production score changes were made. Pages publication is the next release action; final Pages run/SHA and production limitations are recorded in checkpoint issue #10. Signed-in multi-device and production restore verification remain outstanding.
