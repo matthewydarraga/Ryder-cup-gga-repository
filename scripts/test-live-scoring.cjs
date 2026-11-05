@@ -20,7 +20,7 @@ let owner=true,user='a',notice='',saved=0;const handlers={},panel={addEventListe
 const state={players:Array.from({length:13},(_,i)=>({id:i===0?'a':i===1?'b':'p'+i,name:'Player '+i})),seasons:[{year:2027,roster:{}}]};
 const g={getState:()=>state,isOwner:()=>owner,getUser:()=>({id:user}),player:id=>state.players.find(p=>p.id===id),save:()=>saved++,notify:x=>notice=x};
 const win={GGA:g,GGA_RESULTS:require('../results-core.js')};
-vm.runInNewContext(fs.readFileSync(require.resolve('../live-scoring.js'),'utf8'),{window:win,document:{createElement:()=>panel,querySelector:()=>({appendChild(){}})},crypto:require('node:crypto').webcrypto,confirm:()=>true,prompt:()=> 'Renamed',FormData:class{constructor(f){this.f=f}get(k){return this.f.values[k]??null}}});
+vm.runInNewContext(fs.readFileSync(require.resolve('../live-scoring.js'),'utf8'),{window:win,fetch:async url=>({ok:true,json:async()=>url.includes('/search?')?{courses:[require('./fixtures/opengolf-course.json')]}:require('./fixtures/opengolf-course.json')}),document:{createElement:()=>panel,querySelector:()=>({appendChild(){}})},crypto:require('node:crypto').webcrypto,confirm:()=>true,prompt:()=> 'Renamed',FormData:class{constructor(f){this.f=f}get(k){return this.f.values[k]??null}}});
 const submit=f=>handlers.submit({preventDefault(){},target:f});
 const click=(dataset={},attributes=[])=>handlers.click({target:{closest:()=>({dataset,hasAttribute:k=>attributes.includes(k)})}});
 const config={format:'1',A0:'a',B0:'b','points-front':'1','points-back':'1','points-match':'2'};
@@ -50,6 +50,15 @@ const target={dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},va
  owner=false;user='p2';await click({holeResult:'B',scoreMatch:r.matches[0].id,scoreRound:r.id,scoreHole:'5'});assert.equal(r.matches[0].holes[5],'A','Spectator cannot use score button');owner=true;
  click({liveView:'all'});
  click({liveRemove:r.matches[0].id,liveRound:r.id});assert.equal(r.matches.length,0);
+ win.GGA_COURSE_CORE=require('../course-core.js');
+ const searchButton={dataset:{},hasAttribute:k=>k==='data-round-course-search',closest:()=>({elements:{namedItem:()=>({value:'Pebblecreek'})}})};
+ await handlers.click({target:{closest:()=>searchButton}});
+ await handlers.change({target:{name:'round-course',value:'0',dataset:{}}});
+ await handlers.change({target:{name:'round-tee',value:'0',dataset:{}}});
+ await submit({id:'live-round-form',values:{title:'Course round',date:'2027-06-02'}});
+ const withCourse=state.liveCup.rounds.at(-1);assert.equal(withCourse.course.tee,'Black');assert.equal(withCourse.course.holes[0].yards,375);
+ withCourse.matches=[{id:'course-match',a:['a'],b:['b'],holes:empty(),points}];user='a';click({liveView:'mine'});assert(panel.innerHTML.includes('Tuscany Falls'));assert(panel.innerHTML.includes('375'));
+ win.GGA_COURSES={getForYear:()=>({...withCourse.course,name:'Different event course',holes:withCourse.course.holes.map(h=>({...h,yards:999}))})};win.GGA_LIVE.render();assert(panel.innerHTML.includes('375'),'Round snapshot wins over tournament default');
  const neutral=predict(empty(),[{}],[{}]);assert(Math.abs(neutral.a-neutral.b)<1e-9);assert(predict(empty(),[{handicap:5}],[{handicap:20}]).a>neutral.a);
  console.log('PASS: legacy/new points, ties, custom weights, early clinches, 1v1–4v4 mocks, isolation, duplicate prevention, owner edits, participant permissions, pause, match/overall views and cloud score overlay');
 })().catch(e=>{console.error(e);process.exitCode=1;});
