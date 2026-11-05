@@ -5,11 +5,11 @@
   let running=false;
   const save=next=>{storage.setItem(key,JSON.stringify(next));items=next;onChange();};
   const list=()=>items.map(x=>({...x}));
-  function put(id,hole,winner,expected,version=null){
+  function put(id,hole,winner,expected,version=null,generation=0){
    const prior=items.find(x=>x.id===id&&x.hole===hole);
    if(prior?.status==='sending')throw Error('This hole is syncing. Wait before correcting it.');
    if(prior?.status==='conflict')throw Error('Review the queued conflict before editing this hole.');
-   const entry={id,hole,winner,expected:prior?prior.expected:expected,version:prior?prior.version:version,status:'pending',createdAt:prior?.createdAt||Date.now()};
+   const entry={id,hole,winner,expected:prior?prior.expected:expected,version:prior?prior.version:version,generation:prior?(prior.generation??0):generation,status:'pending',createdAt:prior?.createdAt||Date.now()};
    save([...items.filter(x=>x.id!==id||x.hole!==hole),entry]);return entry;
   }
   function remove(id,hole){if(items.some(x=>x.id===id&&x.hole===hole&&x.status==='sending'))throw Error('Wait for this score to finish syncing.');save(items.filter(x=>x.id!==id||x.hole!==hole));}

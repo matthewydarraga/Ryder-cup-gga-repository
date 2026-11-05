@@ -73,3 +73,23 @@ Phase 2: My Match home, sticky team standings and winning target, round/day filt
 Phase 3: courses/tees/tee sheets, alternates and scheduling, readiness checklist, opt-in spectator scores, recaps, announcements, mock reset and event handicap snapshots.
 
 Preserve name + PIN sign-in, the 13-player roster, original photos, tournament archives, and the strictly free Spark plan throughout.
+
+## Step 5 and OpenGolfAPI checkpoint — 2026-11-05
+
+Implemented on `codex/revamp-step-5-courses`; not deployed yet.
+
+- Match views show Scheduled, Live, Awaiting Confirmation and Final. Submitting freezes hole writes; each participant confirms; only Matthew can finalize after all confirmations or reopen with a required reason.
+- Separate matchStates records prevent ordinary owner metadata saves from erasing locks. Every transition requires an atomic append-only matchAudit record. Reopening increments a generation; previously queued edits cannot replay into the reopened scorecard. Actions reject stale displayed revisions.
+- Complete backups include lifecycle records and audit history. Restore allocates fresh match IDs and pauses rounds; previous confirmations and final states are archived and displayed as previous-scorecard history. Restored matches require fresh confirmation/finalization, explicitly described in the restore preview.
+- Golf Courses is reachable through bottom navigation > More for everyone. OpenGolfAPI full detail `/api/v1/courses/{id}` provides tees and holes_data; exact tee names select yardage, including combination tees. Missing distances remain missing. Shared 2027 saves and backups preserve course data. Historical course imports are blocked by the UI.
+- Owner-only imports validate six-hole parts in separate immutable Firestore records, assemble a verified course card, then reference that exact card in the shared atomic save. This avoids Firestore's 1000-expression limit while validating every hole. Failed imports can leave unused validation records but do not replace the selected shared course. No Functions, Storage, billing or new paid services.
+
+Validation: application tests and the complete Firestore emulator suite passed locally, including legacy permissions, backup/restore, substitutions, lifecycle transitions, immutable audit, finalized locks, stale generations and owner-only course import. A recorded live OpenGolfAPI response verifies tee-specific yardages, rating, slope and indexes. Visual browser QA was interrupted by the user; signed-in production and multi-device flows have not been verified.
+
+Release gate: Firebase CLI reports no authorized accounts. Publish compatible firestore.rules to `gga-ryder-cup` before merging this branch or deploying Pages. No production records or rules were changed. Last inspected production source is b839e005d1c6137374c8f9dfb9ff01178ddd7229. The public Pages fetch could not be independently verified in this session.
+
+Next actions: finish PR CI; authenticate Firebase; deploy rules; merge/deploy Pages; verify owner and participant flows on separate signed-in devices, including offline edits across final/reopen. Preserve tightened rules if rolling back the site; older clients cannot score reopened matches until refreshed. Then continue Step 6 (score-change history and safe undo).
+
+## Release update — 2026-11-05
+
+PR #11 source commit 85383aed594db05ae4e0243f6527289ac8288ffe passed GitHub Actions run 42076134383, including application tests, full emulator permissions and headless Chrome rendering. Firebase CLI authentication completed, and the tested firestore.rules compiled and deployed successfully to gga-ryder-cup before site merge. No billing, account or production score changes were made. Pages publication is the next release action; final Pages run/SHA and production limitations are recorded in checkpoint issue #10. Signed-in multi-device and production restore verification remain outstanding.

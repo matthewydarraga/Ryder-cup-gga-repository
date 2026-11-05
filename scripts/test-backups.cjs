@@ -17,7 +17,10 @@ function fake(){const f=fixture();let owner=true,session='owner:1',busy=false,fa
  return {...f,get state(){return f.state},api,pause(){f.docs.get('public/clubhouse').liveCup.rounds[0].started=false;f.docs.get('liveMatches/original-match').started=false;},setOwner:v=>owner=v,setSession:v=>session=v,setFail:v=>fail=v,setBeforeTx:v=>beforeTx=v,get busy(){return busy}};
 }
 async function run(){
- const h=fake(),file=await h.api.capture(),roster=h.state.players;
+ const h=fake();const lifecycle={matchId:'original-match',status:'awaiting',revision:1,generation:0,confirmed:[],reason:'',actor:h.ids[0],updatedAt:123};
+ h.docs.set('matchStates/original-match',lifecycle);h.docs.set('matchAudit/original-match_1',{...lifecycle,action:'submit'});
+ const file=await h.api.capture(),roster=h.state.players;
+ assert.equal(file.payload.matchStates.length,1);assert.equal(file.payload.matchAudit[0].action,'submit');
  assert.equal(file.payload.state.liveCup.rounds[0].matches[0].holes[0],'halve','Live result replaces stale browser hole');
  assert.equal(file.payload.state.liveCup.rounds[0].matches[0].holes[1],null,'Explicit cleared result survives backup');
  assert.equal(file.payload.state.players[0].handicap,14.2);assert(file.payload.profiles[roster[0].id].photoData);
@@ -31,6 +34,7 @@ async function run(){
  assert.deepEqual(next.payload.state.seasons,file.payload.state.seasons);assert.deepEqual(next.payload.state.draft2027,file.payload.state.draft2027);assert.deepEqual(next.payload.state.clubhouse,file.payload.state.clubhouse);
  assert.equal(h.docs.get('liveMatches/original-match').active,false);assert(h.docs.has('liveScores/original-match_0'),'Old records are retained for recovery');
  assert.equal(h.docs.get('public/clubhouse').revision,8);assert.equal(h.docs.get('private/live2027').revision,8);
+ assert.equal(next.payload.state.liveCup.lifecycleArchive[0].audit[0].action,'submit','Restore retains immutable lifecycle history as an archive');
  const modified=b.clone(file);modified.payload.state.handicapWeight=50;await assert.rejects(b.parse(JSON.stringify(modified),roster,'gga-ryder-cup'),/integrity/);
  await assert.rejects(b.parse(JSON.stringify({...file,version:999}),roster,'gga-ryder-cup'),/version/);
  await assert.rejects(b.parse(JSON.stringify(file),roster,'different-project'),/different Firebase/);

@@ -28,6 +28,8 @@ function createCloudAPI({sdk,db,assertReady,sessionId,getRevision,onBusy,onAppli
    const result=await sdk.runTransaction(db,async tx=>{
     const refs=[publicRef,privateRef,sdk.doc(db,'liveMatches',request.matchId),...Array.from({length:18},(_,i)=>sdk.doc(db,'liveScores',request.matchId+'_'+i))];
     const snaps=await Promise.all(refs.map(ref=>tx.get(ref)));
+    const lifecycle=await tx.get(sdk.doc(db,'matchStates',request.matchId));
+    if(lifecycle.exists()&&lifecycle.data().status!=='live')throw Error('Reopen this match with a reason before changing its lineup.');
     if(sessionId()!==ticket)throw Error('Account changed. Sign in again.');
     if(!snaps[0].exists()||!snaps[1].exists()||snaps[0].data().revision!==base||snaps[1].data().revision!==base)throw Error('A newer owner update exists. Reload the match before editing.');
     const shared=snaps[0].data(),priv=snaps[1].data(),round=shared.liveCup.rounds.find(r=>r.id===request.roundId),old=round?.matches.find(m=>m.id===request.matchId);

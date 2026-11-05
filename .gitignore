@@ -7,3 +7,5 @@ functions/.env.*
 *.log
 .DS_Store
 security-analysis.local.md
+
+.tools/

@@ -1,7 +1,7 @@
 /* Owner-only complete backup/atomic restore using the existing Spark rules. */
 (function(root){'use strict';
 function factory({sdk,db,gga,projectId,assertReady,sessionId,onBusy,onRestored}){
- const b=root.GGA_BACKUP||(typeof require==='function'?require('./backup-core.js'):null),collectionNames=['profiles','liveMatches','liveScores'];
+ const b=root.GGA_BACKUP||(typeof require==='function'?require('./backup-core.js'):null),collectionNames=['profiles','liveMatches','liveScores','matchStates','matchAudit'];
  const publicRef=sdk.doc(db,'public','clubhouse'),privateRef=sdk.doc(db,'private','live2027');
  const strip=d=>Object.fromEntries(Object.entries(d).filter(([k])=>k!=='updatedAt'));
  const serial=x=>b.clone(x);
@@ -22,7 +22,7 @@ function factory({sdk,db,gga,projectId,assertReady,sessionId,onBusy,onRestored})
    if(b.canonical(first)!==b.canonical(second))continue;
    const profiles=Object.fromEntries(roster().map(p=>[p.id,{}]));for(const {id,...d}of second.profiles)profiles[id]=strip(d);const scores=second.liveScores.map(strip),metadata=second.liveMatches.map(strip);
    const state=b.buildState(gga.getState(),second.shared,second.privateData,profiles,scores);
-   return b.create({state,profiles,liveScores:scores,liveMatches:metadata,sourceRevision:second.shared.revision},roster(),projectId,'server');
+   return b.create({state,profiles,liveScores:scores,liveMatches:metadata,matchStates:second.matchStates.map(strip),matchAudit:second.matchAudit.map(strip),sourceRevision:second.shared.revision},roster(),projectId,'server');
   }
   throw Error('Scores or profiles are changing. Pause scoring and retry the backup. Nothing was changed.');
  }
@@ -47,6 +47,11 @@ function factory({sdk,db,gga,projectId,assertReady,sessionId,onBusy,onRestored})
   if(2+roster().length+active.length+plan.state.liveCup.rounds.reduce((n,r)=>n+r.matches.length,0)>450)throw Error('Restore exceeds the atomic write limit.');
   onBusy(true);
   try{
+   if(plan.shared.season2027.course){
+    const courses=root.GGA_COURSE_CORE||(typeof require==='function'?require('./course-core.js'):null);
+    const saved=await courses.createPublisher({sdk,db})(plan.shared.season2027.course);
+    plan.shared.season2027.course=saved;plan.state.seasons.find(s=>s.year===2027).course=saved;
+   }
    await sdk.runTransaction(db,async tx=>{
     const refs=[publicRef,privateRef,...roster().map(p=>sdk.doc(db,'profiles',p.id)),...active.map(m=>sdk.doc(db,'liveMatches',m.id))];
     const snaps=await Promise.all(refs.map(ref=>tx.get(ref)));checkSession(ticket);

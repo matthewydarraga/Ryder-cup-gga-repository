@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),c=require('../course-core.js'),b=require('../backup-core.js'),{fixture}=require('./test-backups.cjs');
+const source=require('./fixtures/opengolf-course.json'),tees=c.teeArray(source),black=c.holeArray(tees[0],source),combo=c.holeArray(tees[1],source);
+assert(c.validHoles(black));assert.equal(black[0].yards,375);assert.equal(combo[1].yards,365);assert.equal(black[0].strokeIndex,11);assert.equal(tees[0].course_rating,70.4);
+const missing=structuredClone(source);delete missing.holes_data[0].yardages['black/blue'];assert.equal(c.holeArray(tees[1],missing)[0].yards,null,'A missing combo tee cannot fall back to black yardages');
+assert(!c.validHoles(black.slice(1)));assert(!c.validHoles(black.map((h,i)=>({...h,number:i===1?1:h.number}))));
+assert.deepEqual(c.holeArray({}, {holes:18}),[],'A hole count is not an array of scorecard holes');
+const course={source:'OpenGolfAPI',sourceId:source.id,name:source.course_name,tee:'Black',rating:70.4,slope:122,holes:black,importedAt:'2026-11-05T16:00:00.000Z'};
+assert(c.validCourse(course));assert(!c.validCourse({...course,slope:999}));
+(async()=>{const f=fixture();f.state.seasons.find(s=>s.year===2027).course=course;const payload={state:f.state,profiles:{},liveMatches:[],liveScores:[],matchStates:[],matchAudit:[]};const file=await b.create(payload,f.state.players,'gga-ryder-cup');const parsed=await b.parse(JSON.stringify(file),f.state.players,'gga-ryder-cup');assert.deepEqual(b.restorePlan(parsed,f.state.players,()=> 'new-id').shared.season2027.course,course);assert(fs.readFileSync('gga-upgrade.js','utf8').includes("['courses','Golf Courses']"));assert(fs.readFileSync('gga-cloud.js','utf8').includes('course:future.course'));console.log('PASS: recorded OpenGolfAPI full-detail tees, combo yardages, missing data, numeric hole counts, validation, shared persistence and course backup round trip');})().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports={course};

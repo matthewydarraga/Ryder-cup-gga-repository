@@ -24,8 +24,23 @@ let selectedRound='all',selectedMatch='',mode='official',busy=false,editing='';
 const uid=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join(''),points=m=>m.points||legacyPoints;
 const rounds=()=>data().rounds.filter(r=>!!r.test===(mode==='test'));
 const holes=m=>results.effectiveHoles(m,window.GGA_LIVE_RESULTS);
-const editable=(m,r)=>canScore(m,r.started,g.isOwner(),g.getUser?.()?.id)&&(!window.GGA_BACKEND_CONFIGURED||!!window.GGA_BACKEND_API?.canScore(m.id));
+const editable=(m,r)=>lifecycle(m).status==='live'&&canScore(m,r.started,g.isOwner(),g.getUser?.()?.id)&&(!window.GGA_BACKEND_CONFIGURED||!!window.GGA_BACKEND_API?.canScore(m.id));
 const labels={front:'Front 9',back:'Back 9',match:'Overall match'};
+const lifecycle=m=>window.GGA_MATCH_STATES?.get(m.id)||{status:'live',confirmed:[],generation:0,revision:0};
+const stateLabel=(r,m)=>({live:r.started?'Live':'Scheduled',awaiting:'Awaiting Confirmation',final:'Final'}[lifecycle(m).status]);
+function lifecyclePanel(r,m){
+ const s=lifecycle(m),player=g.getUser?.()?.id,participants=[...m.a,...m.b],owner=g.isOwner(),can=participants.includes(player);
+ const button=(action,label)=>'<button class="btn btn-secondary" data-match-action="'+action+'" data-match-revision="'+s.revision+'" data-match-id="'+m.id+'">'+label+'</button>';
+ const lineage=new Set([m.id,...(data().lineupHistory||[]).filter(h=>h.lineageId===(m.lineageId||m.id)).map(h=>h.before.matchId)]);
+ const archived=(data().lifecycleArchive||[]).flatMap(a=>(a.audit||[]).filter(x=>a.mapping[x.matchId]===m.id));
+ const records=[...(window.GGA_MATCH_AUDIT?.values()||[])].filter(x=>lineage.has(x.matchId)).concat(archived).sort((a,b)=>b.revision-a.revision);
+ return '<section class="panel panel-pad"><strong>'+stateLabel(r,m)+'</strong>'+(s.status==='awaiting'?'<p>Scores are frozen for review. Confirmed: '+s.confirmed.length+'/'+participants.length+' · '+esc(names(s.confirmed))+'</p>':'')+
+ (r.started&&s.status==='live'&&(can||owner)?'<p>Submit the agreed scorecard when play is complete. This locks hole edits while every participant confirms.</p>'+button('submit','Submit for confirmation'):'')+
+ (s.status==='awaiting'&&can&&!s.confirmed.includes(player)?button('confirm','Confirm this scorecard'):'')+
+ (s.status==='awaiting'&&owner&&participants.every(p=>s.confirmed.includes(p))?button('finalize','Finalize match'):'')+
+ (owner&&s.status!=='live'?button('reopen','Reopen with reason'):'')+
+ (records.length?'<details><summary>Match audit history ('+records.length+')</summary>'+records.map(x=>'<p>#'+x.revision+' · '+esc(x.action)+(x.matchId!==m.id?' (previous scorecard)':'')+' · '+esc(names([x.actor]))+(x.reason?' · '+esc(x.reason):'')+' · '+esc(x.updatedAt?.toDate?.().toLocaleString()||'Server confirmed')+'</p>').join('')+'</details>':'')+'</section>';
+}
 function commit(message){g.save();if(g.refreshResults)g.refreshResults();else render();g.notify(message);}
 function total(rs){const ids=new Set(rs.map(r=>r.id)),model=results.event(g.getState(),2027,{practice:mode==='test',overlay:window.GGA_LIVE_RESULTS});let a=0,b=0;for(const r of model.rounds)if(ids.has(r.id))for(const m of r.matches){a+=m.secured.a;b+=m.secured.b;}return [a,b];}
 const pointInputs=p=>['front','back','match'].map(k=>'<label class="form-field">'+labels[k]+' points<input name="points-'+k+'" type="number" min="0" max="100" step="0.5" value="'+p[k]+'" required></label>').join('');
@@ -35,10 +50,10 @@ function history(m){
  const entries=(data().lineupHistory||[]).filter(x=>x.lineageId===(m.lineageId||m.id));if(!entries.length)return '';
  return '<details><summary>Lineup history ('+entries.length+(entries.length===1?' change':' changes')+')</summary>'+entries.slice().reverse().map(x=>'<article class="panel panel-pad"><strong>'+esc(x.policy==='retain'?'Results retained':'Fresh match started')+'</strong><p>'+esc(names(x.before.a))+' vs '+esc(names(x.before.b))+' → '+esc(names(x.after.a))+' vs '+esc(names(x.after.b))+'</p><p>'+esc(x.reason)+'</p><small>By '+esc(g.getState().players.find(p=>p.username===x.actor)?.name||x.actor)+' · '+esc(new Date(x.at).toLocaleString())+'</small><p class="hint">Previous scorecard · '+x.before.holes.filter(h=>h!==null).length+' recorded holes · historical results do not add to current standings.</p><div class="live-holes">'+x.before.holes.map((h,i)=>'<label>Hole '+(i+1)+'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong></label>').join('')+'</div></article>').join('')+'</details>';
 }
-function spectatorSummary(r,m){const hs=holes(m),c=contest(hs),a=hs.filter(h=>h==='A').length,b=hs.filter(h=>h==='B').length,played=hs.filter(h=>h!==null&&h!==undefined).length,finished=c.settled||played===18;const leader=c.lead>0?names(m.a):c.lead<0?names(m.b):null;const standing=played===0?'Not started':c.lead===0?'All square':leader+' leads '+Math.abs(c.lead)+' UP';return '<article class="live-match" aria-label="Match status"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p><strong>'+esc(standing)+'</strong> · '+(finished?'Final':'Through '+played+' '+(played===1?'hole':'holes'))+'</p><p class="hint">Holes won: '+esc(names(m.a))+' '+a+' – '+b+' '+esc(names(m.b))+(played-a-b?' · Tied '+(played-a-b):'')+'</p><p class="hint">'+(finished?'Match completed':'Live match update')+' · Read-only spectator view</p></article>';}
+function spectatorSummary(r,m){const hs=holes(m),c=contest(hs),a=hs.filter(h=>h==='A').length,b=hs.filter(h=>h==='B').length,played=hs.filter(h=>h!==null&&h!==undefined).length,finished=c.settled||played===18;const leader=c.lead>0?names(m.a):c.lead<0?names(m.b):null;const standing=played===0?'Not started':c.lead===0?'All square':leader+' leads '+Math.abs(c.lead)+' UP';return '<article class="live-match" aria-label="Match status"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p><strong>'+esc(standing)+'</strong> · '+esc(stateLabel(r,m))+' · Through '+played+' '+(played===1?'hole':'holes')+'</p><p class="hint">Holes won: '+esc(names(m.a))+' '+a+' – '+b+' '+esc(names(m.b))+(played-a-b?' · Tied '+(played-a-b):'')+'</p><p class="hint">'+(finished?'Match completed':'Live match update')+' · Read-only spectator view</p></article>';}
 function card(r,m,detail){if(!g.isOwner()&&![...m.a,...m.b].includes(g.getUser?.()?.id))return spectatorSummary(r,m);const hs=holes(m),results=score(hs,points(m)),can=editable(m,r),c=contest(hs),course=window.GGA_COURSES?.getForYear?.(2027),holeInfo=i=>course?.holes?.find(h=>Number(h.number)===i+1),holeTitle=i=>{const h=holeInfo(i);return 'Hole '+(i+1)+(h?' · Par '+(h.par??'—')+' · '+(h.yards??'—')+' yd'+(h.strokeIndex?' · SI '+h.strokeIndex:''):'');};return '<div class="live-match"><h4>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h4><p>'+m.a.length+'v'+m.b.length+' · '+c.played+'/18 holes recorded · '+Object.values(points(m)).reduce((a,b)=>a+b,0)+' points available</p><div class="live-points">'+results.map(c=>'<div><small>'+labels[c.key]+' · '+c.points+' '+(c.points===1?'point':'points')+'</small><strong>'+(c.settled?c.a+' – '+c.b:status(c))+'</strong><small>'+(c.settled?'Points secured':'In progress')+'</small></div>').join('')+'</div><p class="hint">Holes won: '+esc(team('A'))+' '+hs.filter(h=>h==='A').length+' · '+esc(team('B'))+' '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+
- (!detail?'<button class="btn btn-secondary" data-live-open="'+m.id+'">Open match & scorecard</button>':'<p class="hint">'+(can?'You can record and correct results for this match.':!r.started?'Matthew must start this round before scoring.':'Only participants in this matchup and Matthew can edit results.')+'</p><div class="live-holes">'+hs.map((h,i)=>'<label>Hole '+(i+1)+(can?'<select '+(busy?'disabled':'')+' data-live-round="'+r.id+'" data-live-match="'+m.id+'" data-live-hole="'+i+'" aria-label="Hole '+(i+1)+' winner">'+[['','Not played'],['A',team('A')],['B',team('B')],['halve','Tied']].map(([v,l])=>'<option value="'+v+'" '+((h||'')===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select>':'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong>')+'</label>').join('')+'</div>')+
- (detail?history(m):'')+(g.isOwner()?'<div class="flex"><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></div>':'')+'</div>';}
+ (!detail?'<button class="btn btn-secondary" data-live-open="'+m.id+'">Open match & scorecard</button>':'<p class="hint">'+(can?'You can record and correct results for this match.':!r.started?'Matthew must start this round before scoring.':'Only participants in this matchup and Matthew can edit results.')+'</p><div class="live-holes">'+hs.map((h,i)=>'<label>'+esc(holeTitle(i))+(can?'<select '+(busy?'disabled':'')+' data-live-round="'+r.id+'" data-live-match="'+m.id+'" data-live-hole="'+i+'" aria-label="Hole '+(i+1)+' winner">'+[['','Not played'],['A',team('A')],['B',team('B')],['halve','Tied']].map(([v,l])=>'<option value="'+v+'" '+((h||'')===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select>':'<strong>'+esc(h==='halve'?'Tied':h?team(h):'—')+'</strong>')+'</label>').join('')+'</div>')+
+ lifecyclePanel(r,m)+(detail?history(m):'')+(g.isOwner()?'<div class="flex"><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></div>':'')+'</div>';}
 function render(){
  const owner=g.isOwner(),rs=rounds();if(selectedRound!=='all'&&!rs.some(r=>r.id===selectedRound))selectedRound='all';
  const shown=rs.filter(r=>selectedRound==='all'||r.id===selectedRound),[a,b]=total(rs),[ra,rb]=total(shown);
@@ -91,13 +106,24 @@ panel.addEventListener('change',async e=>{
  if(window.GGA_BACKEND_CONFIGURED){busy=true;render();try{const result=await window.GGA_SAVE_HOLE(m.id,i,value,holes(m)[i]);g.notify(result?.pending?'Score saved on this device; check the score queue for server confirmation.':'Hole saved and confirmed by server.');}catch(e){g.notify('Hole did not save: '+String(e.message||e));}finally{busy=false;render();}}
  else{m.holes[i]=value;commit('Hole saved on this device.');}
 });
-panel.addEventListener('click',e=>{
+panel.addEventListener('click',async e=>{
+ if(e.target.closest('[data-match-action]')?.dataset.matchAction){
+  if(busy)return;const t=e.target.closest('[data-match-action]'),action=t.dataset.matchAction,id=t.dataset.matchId;
+  const reason=action==='reopen'?prompt('Why are you reopening this match? (required, up to 500 characters)'):'';if(action==='reopen'&&!reason)return;
+  if(!confirm(action==='reopen'?'Reopen scoring and clear all confirmations?':'Confirm this match action: '+action+'?'))return;
+  busy=true;render();try{
+   if(window.GGA_BACKEND_CONFIGURED){if(!window.GGA_MATCH_ACTION)throw Error('Match tools are still loading.');await window.GGA_MATCH_ACTION(id,action,reason,Number(t.dataset.matchRevision));}
+   else throw Error('Sign in online to manage confirmed match states.');
+   g.notify('Match action confirmed by server.');
+  }catch(e){g.notify('Match unchanged: '+e.message);}finally{busy=false;render();}return;
+ }
  if(busy)return;const t=e.target.closest('button');if(!t)return;
  if(t.dataset.liveMode){mode=t.dataset.liveMode;selectedRound='all';selectedMatch='';editing='';render();return;}
  if(t.dataset.liveOpen){selectedMatch=t.dataset.liveOpen;editing='';render();return;}
  if(t.hasAttribute('data-live-overview')){selectedMatch='';editing='';render();return;}
  if(!g.isOwner())return;
  if(t.hasAttribute('data-live-cancel')){editing='';render();return;}
+ if(t.dataset.liveEdit&&lifecycle(data().rounds.flatMap(r=>r.matches).find(m=>m.id===t.dataset.liveEdit)).status!=='live')return g.notify('Reopen the match before editing.');
  if(t.dataset.liveEdit){editing=t.dataset.liveEdit;render();return;}
  if(t.hasAttribute('data-live-mock')){
   if(data().rounds.some(r=>r.test))return g.notify('A mock tournament already exists. Open its rounds to test or customize it.');
