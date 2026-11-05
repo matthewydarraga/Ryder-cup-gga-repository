@@ -56,7 +56,8 @@ service cloud.firestore {
     && d.schemaVersion==4 && d.players is list && d.players.size()==13
     && d.season2026 is map && d.season2026.year==2026 && d.season2026.rounds is list
     && d.season2027 is map && d.season2027.year==2027
-    && d.season2027.keys().hasOnly(['year','location','date','teams','roster'])
+    && d.season2027.keys().hasOnly(['year','location','date','teams','roster','course'])
+    && (!('course' in d.season2027)||verifiedCourse(d.season2027.course))
     && d.clubhouse is map && !d.clubhouse.keys().hasAny(['coverData','coverPath'])
     && d.draft2027 is map && d.draft2027.picks is list && d.draft2027.picks.size()<=12
     && d.liveCup is map && d.liveCup.year==2027 && d.liveCup.rounds is list && d.liveCup.rounds.size()<=30
@@ -134,7 +135,8 @@ service cloud.firestore {
   }
   function validLiveScore(id,d){
    return d.keys().hasAll(['matchId','hole','winner','updatedAt'])
-    && d.keys().hasOnly(['matchId','hole','winner','updatedAt'])
+    && d.keys().hasOnly(['matchId','hole','winner','updatedAt','generation'])
+    && (!('generation' in d)||(d.generation is int && d.generation>=0))
     && d.matchId is string && d.matchId.size()>0 && d.matchId.size()<=64
     && d.hole is int && d.hole>=0 && d.hole<=17
     && id==d.matchId+'_'+string(d.hole)
@@ -143,7 +145,97 @@ service cloud.firestore {
   function scoringParticipant(d){
    let m=get(/databases/$(database)/documents/liveMatches/$(d.matchId)).data;
    let p=get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId;
-   return active() && m.active && m.started && (owner() || p in m.a || p in m.b);
+   return active() && m.active && m.started && scoreUnlocked(d) && (owner() || p in m.a || p in m.b);
+  }
+  // matchStates is separate from owner-published metadata so normal saves cannot erase locks.
+  // matchAudit mirrors each state revision; append-only and required in the same transaction.
+  function scoreUnlocked(d){
+   let path=/databases/$(database)/documents/matchStates/$(d.matchId);
+   return !exists(path) ? d.get('generation',0)==0 :
+    get(path).data.status=='live' && d.get('generation',0)==get(path).data.generation;
+  }
+  function validCourseHole(h,n){return h.size()==4 && h.number==n && h.par in [3,4,5,6] && (h.yards==null || (h.yards is int && h.yards>0 && h.yards<=1000)) && (h.strokeIndex==null || (h.strokeIndex is int && h.strokeIndex>=1 && h.strokeIndex<=18));}
+  function validCourse(c){
+   return c is map && c.keys().hasAll(['source','sourceId','name','tee','rating','slope','holes','importedAt'])
+    && c.keys().hasOnly(['source','sourceId','name','tee','rating','slope','holes','importedAt','correctedAt','recordId'])
+    && c.source=='OpenGolfAPI' && c.sourceId is string && c.sourceId.size()<=120
+    && c.name is string && c.name.size()>0 && c.name.size()<=200
+    && c.tee is string && c.tee.size()<=120
+    && (c.rating==null || (c.rating is number && c.rating>=20 && c.rating<=100))
+    && (c.slope==null || (c.slope is number && c.slope>=55 && c.slope<=155))
+    && c.holes is list && c.holes.size()==18
+    && c.importedAt is string && c.importedAt.size()<=40
+    && (!('correctedAt' in c)||(c.correctedAt is string && c.correctedAt.size()<=40));
+  }
+
+  // Immutable validation records keep an 18-hole import below the expression limit.
+  // Each six-hole part is validated in its own request; only Matthew can publish them.
+  function verifiedCourse(c){return c.recordId is string && c.recordId.size()<=64 && c==get(/databases/$(database)/documents/courseCards/$(c.recordId)).data;}
+  function validCoursePart(d){return d.keys().hasOnly(['start','holes']) && d.start in [1,7,13] && d.holes is list && d.holes.size()==6 && validCourseHole(d.holes[0],d.start+0) && validCourseHole(d.holes[1],d.start+1) && validCourseHole(d.holes[2],d.start+2) && validCourseHole(d.holes[3],d.start+3) && validCourseHole(d.holes[4],d.start+4) && validCourseHole(d.holes[5],d.start+5);}
+  match /courseParts/{id} {
+   allow read: if active();
+   allow create: if owner() && id.size()<=72 && validCoursePart(request.resource.data);
+   allow update,delete: if false;
+  }
+  match /courseCards/{id} {
+   allow read: if active();
+   allow create: if owner() && id.size()>0 && id.size()<=64 && request.resource.data.recordId==id && validCourse(request.resource.data)
+    && request.resource.data.holes==get(/databases/$(database)/documents/courseParts/$(id+'_1')).data.holes.concat(get(/databases/$(database)/documents/courseParts/$(id+'_7')).data.holes).concat(get(/databases/$(database)/documents/courseParts/$(id+'_13')).data.holes)
+    && get(/databases/$(database)/documents/courseParts/$(id+'_1')).data.start==1
+    && get(/databases/$(database)/documents/courseParts/$(id+'_7')).data.start==7
+    && get(/databases/$(database)/documents/courseParts/$(id+'_13')).data.start==13;
+   allow update,delete: if false;
+  }
+  function participant(m){
+   return active() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId in m.a.concat(m.b);
+  }
+  function validState(d,id){
+   let m=get(/databases/$(database)/documents/liveMatches/$(id)).data;
+   return d.keys().hasAll(['matchId','status','revision','generation','confirmed','reason','actor','updatedAt'])
+    && d.keys().hasOnly(['matchId','status','revision','generation','confirmed','reason','actor','updatedAt'])
+    && d.matchId==id && d.status in ['live','awaiting','final']
+    && d.revision is int && d.revision>0 && d.generation is int && d.generation>=0
+    && d.confirmed is list && d.confirmed.size()<=8 && d.confirmed.toSet().size()==d.confirmed.size()
+    && d.confirmed.hasOnly(m.a.concat(m.b))
+    && d.reason is string && d.reason.size()<=500
+    && self(d.actor) && d.updatedAt==request.time && m.active && m.started;
+  }
+  function validTransition(old,d,id){
+   let m=get(/databases/$(database)/documents/liveMatches/$(id)).data;
+   return d.revision==old.revision+1 && (
+    (old.status=='live' && d.status=='awaiting' && (owner()||participant(m)) && d.confirmed.size()==0 && d.generation==old.generation && d.reason=='') ||
+    (old.status=='awaiting' && d.status=='awaiting' && participant(m) && !(d.actor in old.confirmed)
+     && d.confirmed.size()==old.confirmed.size()+1 && d.confirmed.hasAll(old.confirmed) && d.actor in d.confirmed
+     && d.generation==old.generation && d.reason=='') ||
+    (old.status=='awaiting' && d.status=='final' && owner() && old.confirmed.hasAll(m.a.concat(m.b))
+     && d.confirmed==old.confirmed && d.generation==old.generation && d.reason=='') ||
+    (old.status in ['awaiting','final'] && d.status=='live' && owner() && d.reason.size()>0
+     && d.confirmed.size()==0 && d.generation==old.generation+1));
+  }
+  function audited(d,id){
+   let a=getAfter(/databases/$(database)/documents/matchAudit/$(id+'_'+string(d.revision))).data;
+   let old=exists(/databases/$(database)/documents/matchStates/$(id))?get(/databases/$(database)/documents/matchStates/$(id)).data.status:'live';
+   return a.diff(d).affectedKeys().hasOnly(['action']) && a.updatedAt==request.time
+    && a.action==(d.status=='final'?'finalize':d.status=='live'?'reopen':old=='live'?'submit':'confirm');
+  }
+  match /matchStates/{id} {
+   allow read: if active();
+   allow create: if validState(request.resource.data,id)
+    && validTransition({'status':'live','revision':0,'generation':0,'confirmed':[]},request.resource.data,id)
+    && audited(request.resource.data,id);
+   allow update: if validState(request.resource.data,id) && validTransition(resource.data,request.resource.data,id) && audited(request.resource.data,id);
+   allow delete: if false;
+  }
+  match /matchAudit/{id} {
+   allow read: if active();
+   allow create: if active() && request.resource.data.keys().hasOnly(['matchId','status','revision','generation','confirmed','reason','actor','updatedAt','action'])
+    && request.resource.data.action in ['submit','confirm','finalize','reopen']
+    && id==request.resource.data.matchId+'_'+string(request.resource.data.revision)
+    && request.resource.data.updatedAt==request.time
+    && getAfter(/databases/$(database)/documents/matchStates/$(request.resource.data.matchId)).data.diff(request.resource.data).affectedKeys().hasOnly(['action'])
+    && (!exists(/databases/$(database)/documents/matchStates/$(request.resource.data.matchId)) ||
+     get(/databases/$(database)/documents/matchStates/$(request.resource.data.matchId)).data.revision<request.resource.data.revision);
+   allow update,delete: if false;
   }
   match /liveMatches/{id} {
    allow read: if active();

@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('node:assert/strict'),{transition}=require('../match-lifecycle.js');
+const participants=['a','b'],player={owner:false,playerId:'a',participants},owner={owner:true,playerId:'a',participants};
+assert.throws(()=>transition(null,'submit',{...player,playerId:'c'}));
+let s=transition(null,'submit',player);assert.equal(s.status,'awaiting');assert.equal(s.revision,1);
+assert.throws(()=>transition(s,'finalize',owner));assert.throws(()=>transition(s,'reopen',player));assert.throws(()=>transition(s,'reopen',{...owner,reason:' '}));
+s=transition(s,'confirm',player);assert.throws(()=>transition(s,'confirm',player));
+s=transition(s,'confirm',{...player,playerId:'b'});assert.throws(()=>transition(s,'finalize',player));
+s=transition(s,'finalize',owner);assert.equal(s.status,'final');assert.throws(()=>transition(s,'submit',owner));
+s=transition(s,'reopen',{...owner,reason:'Correct agreed result'});assert.equal(s.status,'live');assert.equal(s.generation,1);assert.deepEqual(s.confirmed,[]);
+const offline=require('../offline-scores.js');let raw;const q=offline.create({storage:{getItem:()=>null,setItem:(_,v)=>raw=v},key:'test'});q.put('match',0,'A',null,null,0);q.put('match',0,'B',null,null,1);assert.equal(JSON.parse(raw)[0].generation,0,'Coalescing cannot refresh the generation of a stale edit');
+console.log('PASS: lifecycle transitions, participant confirmations, owner final/reopen, reason validation and durable stale generations');

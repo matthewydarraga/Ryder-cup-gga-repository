@@ -1,6 +1,7 @@
 /* Project Revamp: portable application backups. No credentials or memberships. */
 (function(root){'use strict';
 const results=typeof module!=='undefined'?require('./results-core.js'):root.GGA_RESULTS;
+const courses=typeof module!=='undefined'?require('./course-core.js'):root.GGA_COURSE_CORE;
 const FORMAT='gga-complete-backup',VERSION=1,MAX_BYTES=20*1024*1024;
 const clone=x=>JSON.parse(JSON.stringify(x));
 const check=(ok,message)=>{if(!ok)throw Error(message);};
@@ -20,6 +21,8 @@ function profile(d){
 function validatePayload(p,roster){
  safeTree(p);check(obj(p)&&obj(p.state)&&obj(p.profiles)&&Array.isArray(p.liveScores)&&Array.isArray(p.liveMatches),'Incomplete backup payload.');
  const s=p.state;check(s.version===2&&Array.isArray(s.players)&&s.players.length===roster.length,'Backup roster is incompatible.');
+ for(const season of s.seasons||[])if(season.course)check(courses.validCourse(season.course),'Invalid saved course scorecard.');
+ for(const name of ['matchStates','matchAudit'])if(name in p){check(Array.isArray(p[name])&&p[name].length<=10000,'Invalid lifecycle archive.');for(const d of p[name])check(obj(d)&&id(d.matchId)&&['live','awaiting','final'].includes(d.status)&&Number.isInteger(d.revision)&&d.revision>0&&Number.isInteger(d.generation)&&d.generation>=0&&Array.isArray(d.confirmed)&&d.confirmed.length<=8&&text(d.reason,500)&&text(d.actor,64),'Invalid match state/audit record.');}
  const expected=new Map(roster.map(p=>[p.id,p.username])),ids=new Set();
  for(const p of s.players){check(expected.has(p.id)&&expected.get(p.id)===p.username&&!ids.has(p.id)&&text(p.name)&&p.name.trim(),'Backup player identity does not match this clubhouse.');ids.add(p.id);for(const k of ['officialPhoto','officialPhotoFallback','football'])if(p[k]!=null)check(text(p[k],2000)&&(/^(https:\/\/|\.\/assets\/)/.test(p[k])),'Invalid player image or biography link.');}
  check(Array.isArray(s.seasons)&&s.seasons.length>=2&&s.seasons.length<=30&&new Set(s.seasons.map(x=>x.year)).size===s.seasons.length,'Invalid seasons.');
@@ -62,7 +65,8 @@ function buildState(base,shared,privateData,profiles,scores){
 function restorePlan(file,roster,makeId){
  validatePayload(file.payload,roster);const s=clone(file.payload.state),mapping={};
  for(const r of s.liveCup.rounds){r.started=false;for(const m of r.matches){const old=m.id;m.id=makeId();check(id(m.id)&&m.id!==old&&!Object.values(mapping).includes(m.id),'Could not allocate a fresh match ID.');mapping[old]=m.id;}}
- const season=s.seasons.find(x=>x.year===2027),shared={schemaVersion:4,players:s.players.map(p=>({id:p.id,name:p.name,username:p.username,football:p.football||null,position:p.position||'',officialPhoto:p.officialPhoto||null,officialPhotoFallback:p.officialPhotoFallback||null,handicap:null,handicapChecked:null})),season2026:s.seasons.find(x=>x.year===2026),season2027:{year:2027,location:season.location||'',date:season.date||'',teams:season.teams,roster:season.roster},clubhouse:Object.fromEntries(Object.entries(s.clubhouse).filter(([k])=>!['coverData','coverPath'].includes(k))),draft2027:s.draft2027,liveCup:s.liveCup,handicapWeight:s.handicapWeight};
+ if(file.payload.matchStates?.length||file.payload.matchAudit?.length)s.liveCup.lifecycleArchive=[...(s.liveCup.lifecycleArchive||[]),{mapping:clone(mapping),states:clone(file.payload.matchStates||[]),audit:clone(file.payload.matchAudit||[])}];
+ const season=s.seasons.find(x=>x.year===2027),shared={schemaVersion:4,players:s.players.map(p=>({id:p.id,name:p.name,username:p.username,football:p.football||null,position:p.position||'',officialPhoto:p.officialPhoto||null,officialPhotoFallback:p.officialPhotoFallback||null,handicap:null,handicapChecked:null})),season2026:s.seasons.find(x=>x.year===2026),season2027:{year:2027,location:season.location||'',date:season.date||'',teams:season.teams,roster:season.roster,...(season.course?{course:season.course}:{})},clubhouse:Object.fromEntries(Object.entries(s.clubhouse).filter(([k])=>!['coverData','coverPath'].includes(k))),draft2027:s.draft2027,liveCup:s.liveCup,handicapWeight:s.handicapWeight};
  check(new TextEncoder().encode(JSON.stringify(shared)).length<900000,'Restored clubhouse exceeds the safe document size.');
  return {state:s,shared,privateRounds:season.rounds,profiles:clone(file.payload.profiles),mapping};
 }

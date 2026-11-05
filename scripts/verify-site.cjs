@@ -19,7 +19,7 @@ for(const [i,m] of matches.entries()){
  new vm.Script(source,{filename:'index-inline-'+i+'.js'});inline++;
 }
 assert.ok(inline>=1,'No inline app script validated');
-for(const path of ['results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
+for(const path of ['match-lifecycle.js','course-core.js','opengolf-course.js','live-scoring.js','results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
  new vm.Script(fs.readFileSync(path,'utf8'),{filename:path});
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 new AsyncFunction(fs.readFileSync('gga-cloud.js','utf8'));
@@ -34,3 +34,5 @@ assert.ok(!/firebase-functions|firebase-storage|httpsCallable|signInWithCustomTo
 const config=JSON.parse(fs.readFileSync('firebase.json','utf8'));
 assert.ok(!config.functions&&!config.storage&&!config.hosting,'Unexpected deploy target');
 console.log('PASS: GGA 2027 structure, 13-player roster, 2026 archive, code syntax, PWA assets and private scoring separation.');
+
+assert(html.indexOf('src="./course-core.js')<html.indexOf('src="./opengolf-course.js'),'Course normalizer must load before importer');
