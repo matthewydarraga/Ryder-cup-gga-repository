@@ -138,7 +138,28 @@ panel.addEventListener('click',async e=>{
  else if(t.dataset.liveRename){const title=prompt('Round name',r.title);if(title?.trim()&&title.trim().length<=70){r.title=title.trim();commit('Round renamed.');}}
  else if(t.dataset.liveRemove){if(!confirm('Remove this matchup from the round? Its results will no longer count.'))return;r.matches=r.matches.filter(m=>m.id!==t.dataset.liveRemove);editing='';commit('Matchup removed.');}
 });
-const prior=window.GGA_UPGRADE_RENDER;window.GGA_UPGRADE_RENDER=()=>{prior?.();render();};
+// Preserve owner drafts during remote score refreshes. Explicit user actions still
+// render normally, so successful saves and Cancel discard their old form state.
+function refreshLive(){
+ const active=document.activeElement;
+ const drafts=Array.from(panel.querySelectorAll?.('form')||[]).map(form=>({
+  id:form.id,round:form.dataset.liveAdd,edit:form.dataset.edit,
+  fields:Array.from(form.elements||[]).filter(el=>el.name).map(el=>({name:el.name,value:el.value,focused:el===active,start:el.selectionStart,end:el.selectionEnd}))
+ }));
+ render();
+ for(const draft of drafts){
+  const form=Array.from(panel.querySelectorAll?.('form')||[]).find(f=>f.id===draft.id&&f.dataset.liveAdd===draft.round&&f.dataset.edit===draft.edit);
+  if(!form)continue;
+  for(const field of draft.fields){
+   const el=form.elements.namedItem(field.name);if(!el)continue;
+   el.value=field.value;
+   if(field.focused){el.focus({preventScroll:true});if(typeof field.start==='number'&&el.setSelectionRange)el.setSelectionRange(field.start,field.end);}
+  }
+  const size=Number(form.elements.namedItem('format')?.value);
+  if(size)form.querySelectorAll('[data-partner]').forEach(el=>el.hidden=Number(el.dataset.partner)>=size);
+ }
+}
+const prior=window.GGA_UPGRADE_RENDER;window.GGA_UPGRADE_RENDER=()=>{prior?.();refreshLive();};
 const priorTab=window.GGA_ON_TAB;window.GGA_ON_TAB=t=>{priorTab?.(t);if(t==='live')render();};
 window.GGA_LIVE={render,score,contest};render();
 })();
