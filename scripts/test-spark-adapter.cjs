@@ -13,12 +13,12 @@ async function harness(pending=false){
  const fire={getFirestore:()=>({}),doc:(_,...p)=>p.join('/'),collection:(_,p)=>p,serverTimestamp:()=>123,
   getDocFromServer:async ref=>snapshot(ref.startsWith('members/')?savedMember:ref.startsWith('liveScores/')?records.get(ref):priv),
   onSnapshot:(ref,...args)=>{const cb=args.find(x=>typeof x==='function');listeners.set(ref,cb);return ()=>listeners.delete(ref);},
-  runTransaction:async(_,fn)=>{if(txFailure)throw Error(txFailure);const staged=[];const result=await fn({get:async ref=>snapshot(ref.startsWith('members/')?savedMember:ref.startsWith('rosterClaims/')?claims.get(ref.split('/')[1]):(ref.startsWith('live')||ref.startsWith('matchStates/'))?records.get(ref):shared),set:(ref,d)=>staged.push([ref,d])});for(const [r,d]of staged){if(r==='public/clubhouse')shared=d;else if(r.startsWith('members/'))savedMember=d;else if(r.startsWith('rosterClaims/'))claims.set(r.split('/')[1],d);else if(r.startsWith('live'))records.set(r,d);else priv=d;writes++;}return result;},
+  runTransaction:async(_,fn)=>{if(txFailure)throw Error(txFailure);const staged=[];const result=await fn({get:async ref=>snapshot(ref.startsWith('members/')?savedMember:ref.startsWith('rosterClaims/')?claims.get(ref.split('/')[1]):(ref.startsWith('live')||ref.startsWith('matchStates/'))?records.get(ref):shared),set:(ref,d)=>staged.push([ref,d])});for(const [r,d]of staged){if(r==='public/clubhouse')shared=d;else if(r.startsWith('members/'))savedMember=d;else if(r.startsWith('rosterClaims/'))claims.set(r.split('/')[1],d);else if(r.startsWith('live')||r.startsWith('scoreAudit/'))records.set(r,d);else priv=d;writes++;}return result;},
   setDoc:async()=>{writes++;}
  };
  const g={getState:()=>state,refreshResults:()=>resultRefreshes++,render(){},save(){ctx.window.GGA_AFTER_SAVE?.();},setSignedIn:u=>signed=u,notify(){},closeLogin(){},showTab(){}};
  const localData=new Map();
- const ctx={localStorage:{getItem:k=>localData.get(k)||null,setItem:(k,v)=>localData.set(k,v)},crypto:webcrypto,TextEncoder,Uint8Array,btoa,window:{GGA_OFFLINE:require('../offline-scores.js'),GGA:g,GGA_BACKEND_CONFIGURED:true,FIREBASE_CONFIG:{},addEventListener:(t,f)=>events[t]=f},document:{querySelector:node,createElement:()=>node('banner'),addEventListener:(t,f)=>events[t]=f},console,confirm:()=>true,setTimeout:f=>(timers.push(f),timers.length),clearTimeout(){},URL,Map,JSON,
+ const ctx={localStorage:{getItem:k=>localData.get(k)||null,setItem:(k,v)=>localData.set(k,v)},crypto:webcrypto,TextEncoder,Uint8Array,btoa,window:{GGA_SCORE_HISTORY:require('../score-history.js'),GGA_OFFLINE:require('../offline-scores.js'),GGA:g,GGA_BACKEND_CONFIGURED:true,FIREBASE_CONFIG:{},addEventListener:(t,f)=>events[t]=f},document:{querySelector:node,createElement:()=>node('banner'),addEventListener:(t,f)=>events[t]=f},console,confirm:()=>true,setTimeout:f=>(timers.push(f),timers.length),clearTimeout(){},URL,Map,JSON,
   modules:[{initializeApp:()=>({})},{getAuth:()=>auth,setPersistence:async()=>{},browserSessionPersistence:'session',onAuthStateChanged:(_,f)=>authCallback=f,signOut:async()=>{},signInWithEmailAndPassword:async()=>{},sendPasswordResetEmail:async()=>{}},fire]};
  const source=fs.readFileSync('gga-cloud.js','utf8').replace(/const \[appMod,authMod,fireMod\]=await Promise\.all\(\[[\s\S]*?\]\);/,'const [appMod,authMod,fireMod]=modules;');
  await vm.runInNewContext('(async()=>{'+source+'})()',ctx);
@@ -76,6 +76,10 @@ async function harness(pending=false){
  await scoring.login();await scoring.emit();scoring.listeners.get('liveScores')({metadata:{fromCache:false},docChanges:()=>[{type:'modified',doc:{id:'match-one_0',data:()=>scoring.records.get('liveScores/match-one_0')}}]});
  await scoring.ctx.window.GGA_SAVE_HOLE('match-one',0,'halve','A');await tick();await tick();
  assert.equal(scoring.ctx.window.GGA_LIVE_RESULTS.get('match-one_0'),'halve');
+ const audit=scoring.records.get('scoreAudit/match-one_0_2');assert.equal(audit.before,'A');assert.equal(audit.winner,'halve');
+ scoring.ctx.window.GGA_SCORE_AUDIT.set('match-one_0_2',audit);
+ await scoring.ctx.window.GGA_UNDO_SCORE('match-one_0_2');assert.equal(scoring.records.get('liveScores/match-one_0').winner,'A');assert.equal(scoring.records.get('scoreAudit/match-one_0_3').undoOf,2);
+ await assert.rejects(scoring.ctx.window.GGA_UNDO_SCORE('match-one_0_2'),/changed/,'Duplicate undo cannot revert later score');
  scoring.records.get('liveMatches/match-one').started=false;
  await scoring.ctx.window.GGA_SAVE_HOLE('match-one',1,'B',null);await tick();await tick();assert.equal(scoring.records.has('liveScores/match-one_1'),false,'Paused match queued edit is blocked');
  scoring.records.get('liveMatches/match-one').started=true;

@@ -93,3 +93,21 @@ Next actions: finish PR CI; authenticate Firebase; deploy rules; merge/deploy Pa
 ## Release update — 2026-11-05
 
 PR #11 source commit 85383aed594db05ae4e0243f6527289ac8288ffe passed GitHub Actions run 42076134383, including application tests, full emulator permissions and headless Chrome rendering. Firebase CLI authentication completed, and the tested firestore.rules compiled and deployed successfully to gga-ryder-cup before site merge. No billing, account or production score changes were made. Pages publication is the next release action; final Pages run/SHA and production limitations are recorded in checkpoint issue #10. Signed-in multi-device and production restore verification remain outstanding.
+
+
+## Step 6 and scorecard interaction checkpoint — 2026-11-06
+
+Based on production 9f56ba7, preserving newer one-hole scoring, round course snapshots, form drafts and aerial views. Branch: codex/scorecard-history.
+
+- Score buttons show the selected result immediately, with per-hole pending/sending/conflict feedback. Confirmed totals never include pending results. Corrections and clears require confirmation; selecting the current result is a no-op.
+- Always-visible front/back-nine tiles show confirmed or clearly marked pending results. Hole jumps focus and scroll to the scoring controls. Previous/next labels, selected-hole state, large controls and a shorter aerial panel improve phone use. The existing dark navy/gold design remains.
+- Each new-client server score transaction appends scoreAudit/{matchId}_{hole}_{revision} with prior/result values, actor, server timestamp, generation and undo reference. History is read-only, covers lineup lineage and includes restored archives.
+- Undo is online-only and requires an empty local queue. It rereads the current score and match lock in a transaction, accepts only the latest revision of that hole in the same generation, restores the prior result, and appends a new audit record. Participants and owner retain their existing scoring permissions; history cannot be rewritten/deleted by either.
+- Compatibility: old clients may continue unaudited writes only on holes that have never received a revision. After the first audited edit, rules reject missing/skipped revisions and require the corresponding new audit record. Refresh older clients before scoring audited holes. Historical changes cannot be reconstructed; history starts with the updated client. The first prior value on an inherited/imported hole comes from its displayed baseline.
+- Complete backups include score audit records and timestamps. Restores preserve them as previous-scorecard archives under fresh match IDs; old records are retained. No production data migration, account changes or paid services.
+
+Validation: npm test and the full Firestore emulator suite passed. New negative tests cover unauthenticated/outsider access, forged actors/values/schema, missing paired writes, replay, downgrade, immutable updates/deletes, stale undo, wrong undo result, final locks and reopened generations. Adapter tests cover the save-to-history and undo wiring; backup tests cover archived history/timestamps. A disposable local browser preview verified scoring feedback and hole navigation at desktop and 390px phone width. The requested Golfify screenshot was unavailable; this is an interaction refinement, not a claimed reproduction. Public Golfify scoring references: https://www.golfify.io/golf-scoring-software.
+
+Release order: deploy tested compatible rules, then merge/publish Pages. Record final PR, SHA and Pages result in issue #10. Signed-in production multi-device scoring/undo, owner course import and real production restore remain unverified. No production test scores were changed.
+
+Next: finish Phase 1 form/session/year consistency and broaden mobile scoring verification; continue Phase 2 around the existing My Round/day views rather than rebuilding them.

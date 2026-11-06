@@ -1,7 +1,7 @@
 /* Owner-only complete backup/atomic restore using the existing Spark rules. */
 (function(root){'use strict';
 function factory({sdk,db,gga,projectId,assertReady,sessionId,onBusy,onRestored}){
- const b=root.GGA_BACKUP||(typeof require==='function'?require('./backup-core.js'):null),collectionNames=['profiles','liveMatches','liveScores','matchStates','matchAudit'];
+ const b=root.GGA_BACKUP||(typeof require==='function'?require('./backup-core.js'):null),collectionNames=['profiles','liveMatches','liveScores','matchStates','matchAudit','scoreAudit'];
  const publicRef=sdk.doc(db,'public','clubhouse'),privateRef=sdk.doc(db,'private','live2027');
  const strip=d=>Object.fromEntries(Object.entries(d).filter(([k])=>k!=='updatedAt'));
  const serial=x=>b.clone(x);
@@ -22,7 +22,7 @@ function factory({sdk,db,gga,projectId,assertReady,sessionId,onBusy,onRestored})
    if(b.canonical(first)!==b.canonical(second))continue;
    const profiles=Object.fromEntries(roster().map(p=>[p.id,{}]));for(const {id,...d}of second.profiles)profiles[id]=strip(d);const scores=second.liveScores.map(strip),metadata=second.liveMatches.map(strip);
    const state=b.buildState(gga.getState(),second.shared,second.privateData,profiles,scores);
-   return b.create({state,profiles,liveScores:scores,liveMatches:metadata,matchStates:second.matchStates.map(strip),matchAudit:second.matchAudit.map(strip),sourceRevision:second.shared.revision},roster(),projectId,'server');
+   return b.create({state,profiles,liveScores:scores,liveMatches:metadata,matchStates:second.matchStates.map(strip),matchAudit:second.matchAudit.map(strip),scoreAudit:second.scoreAudit,sourceRevision:second.shared.revision},roster(),projectId,'server');
   }
   throw Error('Scores or profiles are changing. Pause scoring and retry the backup. Nothing was changed.');
  }

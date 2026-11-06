@@ -19,7 +19,9 @@ function fake(){const f=fixture();let owner=true,session='owner:1',busy=false,fa
 async function run(){
  const h=fake();const lifecycle={matchId:'original-match',status:'awaiting',revision:1,generation:0,confirmed:[],reason:'',actor:h.ids[0],updatedAt:123};
  h.docs.set('matchStates/original-match',lifecycle);h.docs.set('matchAudit/original-match_1',{...lifecycle,action:'submit'});
+ h.docs.set('scoreAudit/original-match_0_1',{matchId:'original-match',hole:0,before:'A',winner:'halve',actor:h.ids[0],generation:0,revision:1,undoOf:0,updatedAt:{seconds:123,nanoseconds:0}});
  const file=await h.api.capture(),roster=h.state.players;
+ assert.equal(file.payload.scoreAudit[0].updatedAt.seconds,123,'Score history retains server timestamp');
  assert.equal(file.payload.matchStates.length,1);assert.equal(file.payload.matchAudit[0].action,'submit');
  assert.equal(file.payload.state.liveCup.rounds[0].matches[0].holes[0],'halve','Live result replaces stale browser hole');
  assert.equal(file.payload.state.liveCup.rounds[0].matches[0].holes[1],null,'Explicit cleared result survives backup');
@@ -35,6 +37,8 @@ async function run(){
  assert.equal(h.docs.get('liveMatches/original-match').active,false);assert(h.docs.has('liveScores/original-match_0'),'Old records are retained for recovery');
  assert.equal(h.docs.get('public/clubhouse').revision,8);assert.equal(h.docs.get('private/live2027').revision,8);
  assert.equal(next.payload.state.liveCup.lifecycleArchive[0].audit[0].action,'submit','Restore retains immutable lifecycle history as an archive');
+ assert.equal(next.payload.state.liveCup.scoreArchive[0].audit[0].before,'A');
+ assert.equal(next.payload.state.liveCup.scoreArchive[0].mapping['original-match'],restored.id);
  const modified=b.clone(file);modified.payload.state.handicapWeight=50;await assert.rejects(b.parse(JSON.stringify(modified),roster,'gga-ryder-cup'),/integrity/);
  await assert.rejects(b.parse(JSON.stringify({...file,version:999}),roster,'gga-ryder-cup'),/version/);
  await assert.rejects(b.parse(JSON.stringify(file),roster,'different-project'),/different Firebase/);

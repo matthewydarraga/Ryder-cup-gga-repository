@@ -19,7 +19,7 @@ for(const [i,m] of matches.entries()){
  new vm.Script(source,{filename:'index-inline-'+i+'.js'});inline++;
 }
 assert.ok(inline>=1,'No inline app script validated');
-for(const path of ['match-lifecycle.js','course-core.js','opengolf-course.js','live-scoring.js','results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
+for(const path of ['score-history.js','match-lifecycle.js','course-core.js','opengolf-course.js','live-scoring.js','results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
  new vm.Script(fs.readFileSync(path,'utf8'),{filename:path});
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 new AsyncFunction(fs.readFileSync('gga-cloud.js','utf8'));

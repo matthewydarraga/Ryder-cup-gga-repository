@@ -135,7 +135,8 @@ service cloud.firestore {
   }
   function validLiveScore(id,d){
    return d.keys().hasAll(['matchId','hole','winner','updatedAt'])
-    && d.keys().hasOnly(['matchId','hole','winner','updatedAt','generation'])
+    && d.keys().hasOnly(['matchId','hole','winner','updatedAt','generation','revision'])
+    && (!('revision' in d)||(d.revision is int && d.revision>0 && d.revision<=1000000))
     && (!('generation' in d)||(d.generation is int && d.generation>=0))
     && d.matchId is string && d.matchId.size()>0 && d.matchId.size()<=64
     && d.hole is int && d.hole>=0 && d.hole<=17
@@ -242,12 +243,45 @@ service cloud.firestore {
    allow create,update: if owner() && id.size()>0 && id.size()<=64 && validLiveMatch(request.resource.data);
    allow delete: if false;
   }
+  // scoreAudit/{matchId}_{hole}_{revision}: immutable server-timed changes.
+  // Older clients can write unaudited holes only until their first audited edit.
+  // Thereafter revision cannot be removed or skipped, including by the owner.
+  function scoreHistoryLinked(id,d){
+   let path=/databases/$(database)/documents/liveScores/$(id);
+   let old=exists(path)?get(path).data:{};
+   return !('revision' in d) ? !('revision' in old) :
+    d.revision==old.get('revision',0)+1
+    && !exists(/databases/$(database)/documents/scoreAudit/$(id+'_'+string(d.revision)))
+    && getAfter(/databases/$(database)/documents/scoreAudit/$(id+'_'+string(d.revision))).data.diff(d).affectedKeys().hasOnly(['before','actor','undoOf']);
+  }
+  function validScoreAudit(id,d){
+   let scoreId=d.matchId+'_'+string(d.hole);
+   let path=/databases/$(database)/documents/liveScores/$(scoreId);
+   let old=exists(path)?get(path).data:{};
+   let next=getAfter(path).data;
+   return d.keys().hasAll(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt'])
+    && d.keys().hasOnly(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt'])
+    && validLiveScore(scoreId,next) && scoringParticipant(next)
+    && d.diff(next).affectedKeys().hasOnly(['before','actor','undoOf'])
+    && d.actor==get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId
+    && d.actor is string && d.actor.size()<=64 && d.before in [null,'A','B','halve']
+    && (!exists(path)||d.before==old.winner)
+    && d.revision==old.get('revision',0)+1 && id==scoreId+'_'+string(d.revision)
+    && d.undoOf is int && (d.undoOf==0 ||
+     (d.undoOf==old.get('revision',0) && d.undoOf>0 && old.generation==d.generation
+      && get(/databases/$(database)/documents/scoreAudit/$(scoreId+'_'+string(d.undoOf))).data.before==d.winner));
+  }
+  match /scoreAudit/{id} {
+   allow read: if active();
+   allow create: if active() && validScoreAudit(id,request.resource.data);
+   allow update,delete: if false;
+  }
   match /liveScores/{id} {
    allow read: if active();
-   allow create: if validLiveScore(id,request.resource.data) && scoringParticipant(request.resource.data);
+   allow create: if validLiveScore(id,request.resource.data) && scoringParticipant(request.resource.data) && scoreHistoryLinked(id,request.resource.data);
    allow update: if validLiveScore(id,request.resource.data)
     && request.resource.data.matchId==resource.data.matchId && request.resource.data.hole==resource.data.hole
-    && scoringParticipant(request.resource.data);
+    && scoringParticipant(request.resource.data) && scoreHistoryLinked(id,request.resource.data);
    allow delete: if false;
   }
   match /profiles/{playerId} {
