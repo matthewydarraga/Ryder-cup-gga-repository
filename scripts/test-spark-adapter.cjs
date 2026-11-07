@@ -76,6 +76,17 @@ async function harness(pending=false){
  await scoring.login();await scoring.emit();scoring.listeners.get('liveScores')({metadata:{fromCache:false},docChanges:()=>[{type:'modified',doc:{id:'match-one_0',data:()=>scoring.records.get('liveScores/match-one_0')}}]});
  await scoring.ctx.window.GGA_SAVE_HOLE('match-one',0,'halve','A');await tick();await tick();
  assert.equal(scoring.ctx.window.GGA_LIVE_RESULTS.get('match-one_0'),'halve');
+ const head=scoring.records.get('liveScores/match-one_0').changeId;
+ const audit=scoring.records.get('liveMatches/match-one/scoreHistory/'+head);
+ assert.equal(audit.before,'A');assert.equal(audit.after,'halve');
+ assert.equal(audit.actor,'player-matthew-ydarraga');
+ const change={...audit,id:head};
+ assert(scoring.ctx.window.GGA_CAN_UNDO_SCORE('match-one',change));
+ await scoring.ctx.window.GGA_UNDO_SCORE('match-one',change);
+ assert.equal(scoring.records.get('liveScores/match-one_0').winner,'A');
+ const undoHead=scoring.records.get('liveScores/match-one_0').changeId;
+ assert.equal(scoring.records.get('liveMatches/match-one/scoreHistory/'+undoHead).undoOf,head);
+ await assert.rejects(scoring.ctx.window.GGA_UNDO_SCORE('match-one',change),/no longer/);
  scoring.records.get('liveMatches/match-one').started=false;
  await scoring.ctx.window.GGA_SAVE_HOLE('match-one',1,'B',null);await tick();await tick();assert.equal(scoring.records.has('liveScores/match-one_1'),false,'Paused match queued edit is blocked');
  scoring.records.get('liveMatches/match-one').started=true;

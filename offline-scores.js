@@ -20,7 +20,7 @@
     if(entry.status==='conflict'||entry.status==='blocked')continue;
     const current=items.find(x=>x.id===entry.id&&x.hole===entry.hole);if(!current)continue;
     save(items.map(x=>x===current?{...x,status:'sending'}:x));
-    try{await send(entry);save(items.filter(x=>x.id!==entry.id||x.hole!==entry.hole));}
+    try{await send(current);save(items.filter(x=>x.id!==entry.id||x.hole!==entry.hole));}
     catch(e){const status=e.code==='score-conflict'?'conflict':e.code==='score-blocked'||e.code==='permission-denied'?'blocked':'pending';
      save(items.map(x=>x.id===entry.id&&x.hole===entry.hole?{...x,status,message:String(e.message||e).slice(0,200),latest:e.latest??null,latestVersion:e.latestVersion??null}:x));
      if(status==='pending')break;

@@ -77,6 +77,17 @@ function cupOdds(a,b,projections){
  if(!p.total)return '<p class="hint">'+(p.unresolved?'No Cup points can be projected from the finalized scorecards.':'Cup projections appear when matchups are scheduled.')+'</p>';
  return '<div aria-label="Ryder Cup projections"><h3>'+(p.settled?'Scheduled Cup points decided':'Ryder Cup win chance')+'</h3><p><strong>'+odds(team('A'),team('B'),p,'Cup tie')+'</strong></p><p class="hint">'+(p.total/4-a-b)+' of '+p.total/4+' points remaining'+(p.unresolved?' · '+p.unresolved/4+' unresolved points on final scorecards excluded':'')+' · Model projection based on all scheduled matchups and recorded holes. A tied Cup is shown separately.</p></div>';
 }
+const scoreHistory=new Map();
+window.GGA_CLEAR_SCORE_HISTORY=()=>scoreHistory.clear();
+function scoreHistoryPanel(m){
+ if(!window.GGA_SCORE_HISTORY)return '';
+ const entries=scoreHistory.get(m.id);
+ const result=value=>value==='halve'?'Tied':value?team(value):'No result';
+ return '<section class="panel panel-pad"><h4>Hole score history</h4><button class="btn btn-secondary" data-score-history="'+m.id+'">'+(entries?'Refresh history':'Load history')+'</button>'+
+ (entries?.length?'<ul>'+entries.map(e=>'<li><strong>Hole '+(e.hole+1)+'</strong> · '+esc(result(e.before))+' → '+esc(result(e.after))+' · '+esc(names([e.actor]))+' · '+esc(e.updatedAt?.toDate?.().toLocaleString()||'Server confirmed')+
+ (e.undoOf?' · Undo':'')+(window.GGA_CAN_UNDO_SCORE?.(m.id,e)?' <button class="btn btn-secondary btn-tiny" data-score-undo="'+e.id+'" data-score-match="'+m.id+'">Undo</button>':'')+'</li>').join('')+'</ul><p class="hint">Showing up to 50 recent synced changes.</p>':
+ entries?'<p>No recorded changes yet.</p>':'')+'</section>';
+}
 const holePositions=new Map();
 function currentHole(m){if(!holePositions.has(m.id)){const next=holes(m).findIndex(h=>h==null);holePositions.set(m.id,next<0?17:next);}return holePositions.get(m.id);}
 function card(r,m,detail,p){
@@ -88,7 +99,7 @@ function card(r,m,detail,p){
  (!detail?'<button class="btn btn-gold" data-live-open="'+m.id+'">Open match & scorecard</button>':
  '<div class="hole-stage"><div class="hole-aerial" data-aerial-course="'+esc(course?.sourceId||'')+'" data-aerial-hole="'+(i+1)+'"></div><div class="hole-navigation">'+nav(i-1,'←')+'<div><small>CURRENT HOLE</small><h2>Hole '+(i+1)+'</h2></div>'+nav(i+1,'→')+'</div><div class="hole-metrics"><div><strong>'+esc(h?.par??'—')+'</strong><small>PAR</small></div><div><strong>'+esc(h?.yards??'—')+'</strong><small>YARDS</small></div><div><strong>'+esc(h?.strokeIndex??'—')+'</strong><small>INDEX</small></div></div><p class="hint">'+esc(course?course.name+' · '+course.tee+' tees':'Select a course in Golf Courses for hole details.')+'</p><button class="btn btn-secondary" data-map-round="'+r.id+'" data-hole-map="'+(i+1)+'">Satellite view ↗</button><p class="hint" id="hole-map-status-'+m.id+'"></p></div><div class="hole-entry"><h4>Who won this hole?</h4><div class="winner-buttons">'+choices.map(([value,label])=>'<button class="btn '+(hs[i]===value?'btn-gold':'btn-secondary')+'" aria-pressed="'+(hs[i]===value)+'" data-hole-result="'+value+'" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'" '+(!can||busy?'disabled':'')+'>'+esc(label)+'</button>').join('')+'</div><p class="hint">'+(can?'Tap the agreed result. Saved scores sync to the leaderboard.':!r.started?'This round has not started.':'Scoring is locked for this match.')+'</p>'+(can?'<button class="btn btn-secondary btn-tiny" data-hole-result="clear" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'">Clear hole result</button>':'')+'</div><details class="round-scorecard"><summary>Full scorecard · '+c.played+'/18</summary><div class="hole-strip">'+hs.map((v,n)=>'<button class="hole-chip '+(n===i?'selected':'')+'" data-hole-nav="'+n+'" data-hole-match="'+m.id+'" aria-label="Hole '+(n+1)+'"><small>Hole '+(n+1)+'</small><strong>'+esc(v==='halve'?'AS':v?team(v):'—')+'</strong></button>').join('')+'</div></details>')+
  segments(hs,m)+matchOdds(r,m,hs,p||projection(r,m,hs))+
- '<p class="hint">Holes won: '+hs.filter(h=>h==='A').length+' – '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+lifecyclePanel(r,m)+(detail?history(m):'')+(g.isOwner()?'<details><summary>Owner controls</summary><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></details>':'')+'</article>';
+ '<p class="hint">Holes won: '+hs.filter(h=>h==='A').length+' – '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+lifecyclePanel(r,m)+(detail?scoreHistoryPanel(m)+history(m):'')+(g.isOwner()?'<details><summary>Owner controls</summary><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></details>':'')+'</article>';
 }
 async function saveResult(roundId,matchId,i,value){
  const r=data().rounds.find(x=>x.id===roundId),m=r?.matches.find(x=>x.id===matchId);
@@ -199,6 +210,19 @@ panel.addEventListener('click',async e=>{
  }
  if(busy)return;const t=e.target.closest('button');if(!t)return;
  if(t.hasAttribute('data-round-course-search')){await searchRoundCourses(t.closest('form').elements.namedItem('course-search').value);return;}
+ if(t.dataset.scoreHistory||t.dataset.scoreUndo){
+  const id=t.dataset.scoreHistory||t.dataset.scoreMatch;
+  const entry=scoreHistory.get(id)?.find(e=>e.id===t.dataset.scoreUndo);
+  if(t.dataset.scoreUndo&&(!entry||!confirm('Undo the latest result change on hole '+(entry.hole+1)+'?')))return;
+  busy=true;render();
+  try{
+   if(entry){await window.GGA_UNDO_SCORE(id,entry);g.notify('Hole result restored.');}
+   const entries=await window.GGA_SCORE_HISTORY(id);
+   scoreHistory.set(id,entries);
+  }catch(error){g.notify(error.message);}
+  finally{busy=false;render();}
+  return;
+ }
  if(t.dataset.holeNav!==undefined){const n=Number(t.dataset.holeNav);if(Number.isInteger(n)&&n>=0&&n<18){holePositions.set(t.dataset.holeMatch,n);render();}return;}
  if(t.dataset.holeResult){await saveResult(t.dataset.scoreRound,t.dataset.scoreMatch,Number(t.dataset.scoreHole),t.dataset.holeResult==='clear'?null:t.dataset.holeResult);return;}
  if(t.dataset.holeMap){await openSatellite(Number(t.dataset.holeMap),t);return;}

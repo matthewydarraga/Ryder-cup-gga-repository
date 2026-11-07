@@ -7,6 +7,8 @@ service cloud.firestore {
   // private/live2027: owner-only legacy match editor rounds. Same revision as clubhouse.
   // profiles/{playerId}: optional photoData JPEG <=32K chars, legend ID,
   // ordered four strengths; required updatedAt server timestamp. No identity fields.
+  // liveMatches/{matchId}/scoreHistory/{changeId}: immutable hole, before/after result,
+  // roster actor, generation, server timestamp, undo target and baseline coordinates.
   function roster(){return {
    'matthew.ydarraga':'player-matthew-ydarraga','michael.rodriguez':'player-michael-rodriguez',
    'jake.norris':'player-jake-norris','brandon.durman':'player-brandon-durman',
@@ -135,7 +137,7 @@ service cloud.firestore {
   }
   function validLiveScore(id,d){
    return d.keys().hasAll(['matchId','hole','winner','updatedAt'])
-    && d.keys().hasOnly(['matchId','hole','winner','updatedAt','generation'])
+    && d.keys().hasOnly(['matchId','hole','winner','updatedAt','generation','changeId'])
     && (!('generation' in d)||(d.generation is int && d.generation>=0))
     && d.matchId is string && d.matchId.size()>0 && d.matchId.size()<=64
     && d.hole is int && d.hole>=0 && d.hole<=17
@@ -146,6 +148,50 @@ service cloud.firestore {
    let m=get(/databases/$(database)/documents/liveMatches/$(d.matchId)).data;
    let p=get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId;
    return active() && m.active && m.started && scoreUnlocked(d) && (owner() || p in m.a || p in m.b);
+  }
+  function historyPath(matchId,changeId){
+   return /databases/$(database)/documents/liveMatches/$(matchId)/scoreHistory/$(changeId);
+  }
+  function validChangeId(id){
+   return id is string && id.matches('^[a-f0-9]{32}$');
+  }
+  function scoreHasHistory(d){
+   return validChangeId(d.changeId)
+    && getAfter(historyPath(d.matchId,d.changeId)).data.updatedAt==request.time
+    && getAfter(historyPath(d.matchId,d.changeId)).data.hole==d.hole;
+  }
+  function baselineMatches(matchId,d){
+   let rounds=get(/databases/$(database)/documents/public/clubhouse).data.liveCup.rounds;
+   let round=rounds[d.roundIndex];
+   let m=round.matches[d.matchIndex];
+   return m.id==matchId && m.holes[d.hole]==d.before;
+  }
+  function undoMatches(matchId,d,previous){
+   let target=get(historyPath(matchId,d.undoOf)).data;
+   return previous.changeId==d.undoOf && target.hole==d.hole
+    && target.generation==d.generation && target.undoOf==null
+    && target.before==d.after && target.after==d.before
+    && (owner() || self(target.actor));
+  }
+  function validScoreHistory(matchId,id,d){
+   let fields=['hole','before','after','actor','generation','updatedAt','undoOf','roundIndex','matchIndex'];
+   return validChangeId(id) && d.keys().hasAll(fields) && d.keys().hasOnly(fields)
+    && d.hole is int && d.hole>=0 && d.hole<=17
+    && d.before in [null,'A','B','halve'] && d.after in [null,'A','B','halve'] && d.before!=d.after
+    && self(d.actor) && d.updatedAt==request.time
+    && d.generation is int && d.generation>=0
+    && (d.undoOf==null || validChangeId(d.undoOf))
+    && d.roundIndex is int && d.roundIndex>=0 && d.roundIndex<30
+    && d.matchIndex is int && d.matchIndex>=0 && d.matchIndex<6;
+  }
+  function historyMatchesScore(matchId,id,d){
+   let path=/databases/$(database)/documents/liveScores/$(matchId+'_'+string(d.hole));
+   let after=getAfter(path).data;
+   return after.changeId==id && after.updatedAt==request.time
+    && after.winner==d.after && after.generation==d.generation
+    && (exists(path)
+     ? get(path).data.winner==d.before && (d.undoOf==null || undoMatches(matchId,d,get(path).data))
+     : d.undoOf==null && baselineMatches(matchId,d));
   }
   // matchStates is separate from owner-published metadata so normal saves cannot erase locks.
   // matchAudit mirrors each state revision; append-only and required in the same transaction.
@@ -244,11 +290,20 @@ service cloud.firestore {
   }
   match /liveScores/{id} {
    allow read: if active();
-   allow create: if validLiveScore(id,request.resource.data) && scoringParticipant(request.resource.data);
+   allow create: if validLiveScore(id,request.resource.data) && scoringParticipant(request.resource.data)
+    && (!('changeId' in request.resource.data) || scoreHasHistory(request.resource.data));
    allow update: if validLiveScore(id,request.resource.data)
     && request.resource.data.matchId==resource.data.matchId && request.resource.data.hole==resource.data.hole
-    && scoringParticipant(request.resource.data);
+    && scoringParticipant(request.resource.data)
+    && ('changeId' in request.resource.data ? scoreHasHistory(request.resource.data) : !('changeId' in resource.data));
    allow delete: if false;
+  }
+  match /liveMatches/{matchId}/scoreHistory/{id} {
+   allow get: if active();
+   allow list: if active() && request.query.limit<=50;
+   allow create: if validScoreHistory(matchId,id,request.resource.data)
+    && historyMatchesScore(matchId,id,request.resource.data);
+   allow update,delete: if false;
   }
   match /profiles/{playerId} {
    allow read: if active();
