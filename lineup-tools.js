@@ -16,7 +16,11 @@ function makeChange(cup,request,{holes,actor,newId,at=new Date().toISOString(),r
  if(!Array.isArray(holes)||holes.length!==18||holes.some(h=>![null,'A','B','halve'].includes(h)))throw Error('The old scorecard is incomplete or invalid.');
  const history=cup.lineupHistory||[];if(!Array.isArray(history)||history.length>=200)throw Error('The lineup history limit has been reached. Export a complete backup before reorganizing this event.');
  const lineageId=m.lineageId||m.id,replacement={...clone(m),id:newId,lineageId,a:[...a],b:[...b],points:clone(p),holes:request.policy==='retain'?[...holes]:Array(18).fill(null)};
- const record={id:newId,lineageId,roundId:r.id,at,actor,revision,reason,policy:request.policy,before:{matchId:m.id,a:[...m.a],b:[...m.b],points:clone(m.points||legacy),holes:[...holes]},after:{matchId:newId,a:[...a],b:[...b],points:clone(p)}};
+ // The replacement keeps its own lineup inputs; the previous generation remains in history.
+ delete replacement.predictionSnapshot;
+ if(request.predictionSnapshot)replacement.predictionSnapshot=clone(request.predictionSnapshot);
+ if(request.format)replacement.format=request.format;
+ const record={id:newId,lineageId,roundId:r.id,at,actor,revision,reason,policy:request.policy,before:{matchId:m.id,a:[...m.a],b:[...m.b],points:clone(m.points||legacy),holes:[...holes],...(m.predictionSnapshot?{predictionSnapshot:clone(m.predictionSnapshot)}:{}),...(m.format?{format:m.format}:{})},after:{matchId:newId,a:[...a],b:[...b],points:clone(p)}};
  const next=clone(cup),round=next.rounds.find(x=>x.id===r.id);round.matches[round.matches.findIndex(x=>x.id===m.id)]=replacement;next.lineupHistory=[...history,record];return {cup:next,replacement,record};
 }
 function createCloudAPI({sdk,db,assertReady,sessionId,getRevision,onBusy,onApplied}){

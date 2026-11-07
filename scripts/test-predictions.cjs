@@ -1,0 +1,54 @@
+const assert=require('node:assert/strict');
+const {snapshot,holeOdds,project,cup}=require('../predictions.js');
+const empty=()=>Array(18).fill(null),one={front:0,back:0,match:1},three={front:1,back:1,match:1};
+const close=(a,b)=>assert(Math.abs(a-b)<1e-10,`${a} != ${b}`);
+const neutral=holeOdds([8],[8]);
+const initial=project(empty(),one,neutral);
+close(initial.a,initial.b);
+assert(initial.tie>0);
+assert(project(empty(),one,holeOdds([-2],[14])).a>initial.a);
+assert(project(empty(),one,holeOdds([18],[14])).a<initial.a);
+const partial=holeOdds([5,null],[16,18],'match-play',12);
+assert(partial.a>partial.b);
+close(holeOdds([null],[null],'match-play',12).a,neutral.a);
+for(const size of [2,3,4]){
+ const a=[0,...Array(size-1).fill(20)],b=Array(size).fill(a.reduce((n,x)=>n+x,0)/size);
+ for(const key of ['best-ball','scramble','shamble','alternate-shot','match-play']){
+  const x=holeOdds(a,b,key),y=holeOdds(b,a,key);
+  close(x.a,y.b);close(x.b,y.a);close(x.a+x.b+x.tie,1);
+  if(key==='match-play')close(x.a,x.b);
+  else assert(key==='alternate-shot'?x.a<x.b:x.a>x.b,key);
+ }
+}
+const live=project(['A','A','A',...Array(15).fill(null)],one,neutral);
+assert(live.a>initial.a&&live.b>0&&live.b<initial.b);
+const dormie=project([...Array(9).fill('A'),...Array(9).fill(null)],one,neutral);
+assert(!dormie.settled);close(dormie.b,0);close(dormie.tie,neutral.b**9);
+const clinched=project([...Array(10).fill('A'),...Array(8).fill(null)],one,neutral);
+assert(clinched.settled);close(clinched.a,1);
+const split=project([...Array(9).fill('A'),...Array(9).fill('B')],three,neutral);
+assert(split.settled);close(split.tie,1);assert.equal(split.secured,6);
+const hs=Array(18).fill('halve');hs[17]=null;
+const correlated=project(hs,{front:0,back:.5,match:1},neutral);
+assert.deepEqual([...correlated.dist.keys()].sort((a,b)=>a-b),[0,3,6]);
+close(correlated.a,neutral.a);close(correlated.tie,neutral.tie);
+const unresolved=project(hs,three,neutral,{final:true});
+assert.equal(unresolved.secured,2);assert.equal(unresolved.unresolved,8);assert(unresolved.settled);close(unresolved.tie,1);
+const final=project(Array(18).fill('B'),one,neutral,{final:true});
+assert(final.settled);close(final.b,1);
+const last=project(hs,one,neutral);
+const projected=cup([last,last]);
+close(projected.a,neutral.a**2+2*neutral.a*neutral.tie);
+close(projected.b,neutral.b**2+2*neutral.b*neutral.tie);
+close(projected.tie,neutral.tie**2+2*neutral.a*neutral.b);
+const mixed=cup([clinched,last]);
+close(mixed.a,neutral.a+neutral.tie);close(mixed.tie,neutral.b);close(mixed.b,0);
+assert(cup([clinched,live]).a>cup([clinched,initial]).a);
+assert.equal(cup([clinched,unresolved]).unresolved,8);
+const roster={a:5,b:20,c:12};
+const saved=snapshot({a:['a'],b:['b']},id=>roster[id],Object.values(roster));
+roster.a=40;
+const updated=snapshot({a:['a'],b:['c']},id=>roster[id],Object.values(roster),saved);
+assert.deepEqual(updated.players,{a:5,c:12});
+assert.equal(updated.fieldMedian,saved.fieldMedian);
+console.log('PASS: deterministic handicap and format odds, comeback, dormie, clinch, final, correlated segments, and Cup convolution');
