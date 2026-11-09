@@ -4,7 +4,7 @@ const {fixture}=require('./test-backups.cjs'),{change}=require('../score-history
  const env=await initializeTestEnvironment({projectId:'demo-gga-spark',firestore:{rules:fs.readFileSync('firestore.rules','utf8')}});sdk.setLogLevel('silent');
  try{
   await env.clearFirestore();const f=fixture(),id='original-match',hole=5;
-  await env.withSecurityRulesDisabled(async ctx=>{for(const [path,d]of f.docs)await sdk.setDoc(sdk.doc(ctx.firestore(),path),d);for(const [uid,index,role]of [['owner',0,'owner'],['player',1,'player'],['outside',2,'player']])await sdk.setDoc(sdk.doc(ctx.firestore(),'members',uid),{username:f.state.players[index].username,playerId:f.ids[index],role,active:true});});
+  await env.withSecurityRulesDisabled(async ctx=>{for(const [path,d]of f.docs)await sdk.setDoc(sdk.doc(ctx.firestore(),path),d);for(const [uid,index,role]of [['owner',0,'owner'],['player',1,'player'],['outside',2,'player'],['peer',0,'player']])await sdk.setDoc(sdk.doc(ctx.firestore(),'members',uid),{username:f.state.players[index].username,playerId:f.ids[index],role,active:true});});
   const db=env.authenticatedContext('player').firestore(),owner=env.authenticatedContext('owner').firestore(),other=env.authenticatedContext('outside').firestore(),guest=env.unauthenticatedContext().firestore();
   const ref=sdk.doc(db,'liveScores',id+'_'+hole),read=async()=>(await sdk.getDoc(ref)).data();
   const make=(current,before,value,extra={})=>change({matchId:id,hole,current,before,value,actor:f.ids[1],generation:0,updatedAt:sdk.serverTimestamp(),...extra});
@@ -15,6 +15,8 @@ const {fixture}=require('./test-backups.cjs'),{change}=require('../score-history
   await assertFails(write(other,u));await assertFails(write(guest,u));
   await assertFails(write(db,{...u,record:{...u.record,actor:f.ids[0]}}));
   await assertFails(write(db,{...u,record:{...u.record,extra:'pollution'}}));
+  await assertFails(write(db,{...u,record:{...u.record,before:'B'}}));
+  await assertFails(write(db,{...u,record:{...u.record,roundIndex:30}}));
   await assertSucceeds(write(db,u));
   const first=await read();
   await assertFails(write(db,u)); // Replay immutable record.
@@ -28,6 +30,7 @@ const {fixture}=require('./test-backups.cjs'),{change}=require('../score-history
   await assertSucceeds(write(db,u));const second=await read();
   await assertFails(write(db,make(second,'B','halve',{undoOf:2}))); // Undo must restore prior result.
   await assertFails(write(db,make(second,'B',null,{undoOf:1}))); // Stale undo.
+  await assertFails(write(env.authenticatedContext('peer').firestore(),make(second,'B','A',{undoOf:2,actor:f.ids[0]})));
   await assertSucceeds(write(db,make(second,'B','A',{undoOf:2})));
   const third=await read();assert.equal(third.revision,3);assert.equal(third.winner,'A');
   for(const database of [db,owner]){await assertFails(sdk.deleteDoc(sdk.doc(database,'scoreAudit',id+'_'+hole+'_1')));await assertFails(sdk.updateDoc(sdk.doc(database,'scoreAudit',id+'_'+hole+'_1'),{before:'B'}));}

@@ -123,14 +123,21 @@ else try{
    if(lifecycle.status!=='live'||lifecycle.generation!==(entry.generation??0))throw Object.assign(Error('Match submitted, finalized, or reopened since this edit. Discard it and review the current scorecard.'),{code:'score-blocked'});
    if(ticket!==epoch||!meta.exists())throw Object.assign(Error('Match setup or account changed. Review this queued edit.'),{code:'score-blocked'});
    const m=meta.data();if(!m.active||!m.started||(!isOwner&&![...m.a,...m.b].includes(playerId)))throw Object.assign(Error('Match paused, replaced, or no longer assigned to you.'),{code:'score-blocked'});
-   const baseline=s.liveCup.rounds.flatMap(r=>r.matches).find(m=>m.id===id)?.holes[hole]??null;
+   let baseline=null,roundIndex=0,matchIndex=0;
+   if(!existing.exists()){
+    const shared=await tx.get(publicRef),rounds=shared.data()?.liveCup?.rounds||[];
+    roundIndex=rounds.findIndex(r=>r.id===m.roundId);matchIndex=rounds[roundIndex]?.matches.findIndex(m=>m.id===id)??-1;
+    if(matchIndex<0)throw Object.assign(Error('The matchup moved or was removed.'),{code:'score-blocked'});
+    baseline=rounds[roundIndex].matches[matchIndex].holes[hole]??null;
+   }
    const latest=existing.exists()?existing.data().winner:baseline,latestVersion=existing.exists()?versionOf(existing.data()):null;
    if(latest!==expected||JSON.stringify(latestVersion)!==JSON.stringify(version)){
     // An identical target is already satisfied, including a retry after a lost acknowledgement.
     if(latest===winner)return;
     throw Object.assign(Error('A newer result exists. Your queued edit was not applied.'),{code:'score-conflict',latest,latestVersion});
    }
-   const update=window.GGA_SCORE_HISTORY.change({matchId:id,hole,current:existing.exists()?existing.data():null,before:latest,value:winner,actor:playerId,generation:lifecycle.generation,updatedAt:fireMod.serverTimestamp()});
+   if(latest===winner)return;
+   const update=window.GGA_SCORE_HISTORY.change({roundIndex,matchIndex,matchId:id,hole,current:existing.exists()?existing.data():null,before:latest,value:winner,actor:playerId,generation:lifecycle.generation,updatedAt:fireMod.serverTimestamp()});
    tx.set(fireMod.doc(db,'liveScores',id+'_'+hole),update.score);
    tx.set(fireMod.doc(db,'scoreAudit',update.id),update.record);
   });
@@ -154,7 +161,7 @@ else try{
  };
  window.GGA_UNDO_SCORE=async auditId=>{
   const entry=window.GGA_SCORE_AUDIT.get(auditId),ticket=epoch;
-  if(!entry||!canScore(entry.matchId)||outbox?.list().length||globalThis.navigator?.onLine===false)throw Error('Connect and resolve pending scores before undoing.');
+  if(!entry||entry.undoOf||!(member?.role==='owner'||member?.playerId===entry.actor)||!canScore(entry.matchId)||outbox?.list().length||globalThis.navigator?.onLine===false)throw Error('Connect and resolve pending scores before undoing.');
   const actor=member.playerId;
   await fireMod.runTransaction(db,async tx=>{
    const ref=fireMod.doc(db,'liveScores',entry.matchId+'_'+entry.hole),snap=await tx.get(ref),state=await tx.get(fireMod.doc(db,'matchStates',entry.matchId)),meta=await tx.get(fireMod.doc(db,'liveMatches',entry.matchId));

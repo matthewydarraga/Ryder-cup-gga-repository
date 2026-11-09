@@ -3,7 +3,7 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const files=['results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-original-group.jpeg','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules'];
+const files=['results-core.js','predictions.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','index.html','premium.css','gga-upgrade.js','gga-cloud.js','firebase-config.js','assets/gga-2026-original-group.jpeg','assets/gga-icon.png','manifest.webmanifest','sw.js','firebase.json','firestore.rules','storage.rules'];
 for(const path of files)assert.ok(fs.existsSync(path),'Required file missing: '+path);
 const html=fs.readFileSync('index.html','utf8');
 for(const id of ['home','history','draft','players','forge','rankings','stats','matches','roster','owner','gga-history-players','gga-history-rounds','gga-draft-pool','gga-owner-account-controls','draft-order-summary','login-email']){
@@ -19,7 +19,7 @@ for(const [i,m] of matches.entries()){
  new vm.Script(source,{filename:'index-inline-'+i+'.js'});inline++;
 }
 assert.ok(inline>=1,'No inline app script validated');
-for(const path of ['score-history.js','match-lifecycle.js','course-core.js','opengolf-course.js','live-scoring.js','results-core.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
+for(const path of ['score-history.js','match-lifecycle.js','course-core.js','opengolf-course.js','live-scoring.js','results-core.js','predictions.js','lineup-tools.js','backup-core.js','backup-cloud.js','backup-ui.js','draft-board.js','player-strengths.js','gga-upgrade.js','sw.js','ghin-snapshot.js','player-dossier.js'])
  new vm.Script(fs.readFileSync(path,'utf8'),{filename:path});
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 new AsyncFunction(fs.readFileSync('gga-cloud.js','utf8'));

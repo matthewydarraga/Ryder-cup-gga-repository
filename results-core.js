@@ -37,10 +37,28 @@ function event(state,year,{practice=false,overlay}={}){
  totals.remaining=totals.available-totals.decided;return {year,source,practice,season,rounds,matches,stats,totals};
 }
 function playerMatches(model,id){return model.matches.filter(m=>m.scored&&[...m.a,...m.b].includes(id)).map(m=>{const side=m.a.includes(id)?'A':'B';return {...m,side,result:m.outcome==='handicap'?'Loss':m.outcome==='halve'?'Halved':m.outcome===side?'Win':m.outcome?'Loss':'In progress',teammates:(side==='A'?m.a:m.b).filter(x=>x!==id),opponents:side==='A'?m.b:m.a};});}
+function rankingIndex(value){
+ if(typeof value!=='number'&&!(typeof value==='string'&&value.trim()))return null;
+ const index=Number(value);
+ return Number.isFinite(index)&&index>=-10&&index<=54?index:null;
+}
 function rankings(state,year,{overlay}={}){
- const model=event(state,year-1,{overlay}),eligible=state.players.filter(p=>p.handicap!==null&&p.handicap!==''&&Number.isFinite(+p.handicap)).sort((a,b)=>+a.handicap-+b.handicap);
- const arr=state.players.map(p=>{const record=model.stats.get(p.id);let seed=null,skill=null;if(p.handicap!==null&&p.handicap!==''&&Number.isFinite(+p.handicap)){const first=eligible.findIndex(x=>x.id===p.id)+1,tied=eligible.filter(x=>+x.handicap===+p.handicap).length;seed=first+(tied-1)/2;skill=eligible.length===1?50:100*(eligible.length-seed)/(eligible.length-1);}const adjust=100*(record.points+2)/(record.possible+4),rating=skill===null?null:state.handicapWeight/100*skill+(1-state.handicapWeight/100)*adjust;return {...p,seed,skill,adjust,rating,record};});
- arr.sort((a,b)=>(b.rating??-999)-(a.rating??-999)||(+a.handicap||0)-(+b.handicap||0)||a.name.localeCompare(b.name));return {year,arr,source:model.season,eligible:eligible.length};
+ const model=event(state,year-1,{overlay});
+ const indexes=new Map(state.players.map(p=>[p.id,rankingIndex(p.handicap)]));
+ const eligible=[...indexes.values()].filter(index=>index!==null).sort((a,b)=>a-b);
+ const weight=state.handicapWeight/100;
+ const arr=state.players.map(p=>{
+  const record=model.stats.get(p.id),index=indexes.get(p.id);
+  const first=index===null?-1:eligible.indexOf(index);
+  const seed=first===-1?null:1+(first+eligible.lastIndexOf(index))/2;
+  // Same Handicap Index scale as the player strength charts.
+  const skill=index===null?null:Math.max(10,Math.min(95,85-1.3*index));
+  const adjust=100*(record.points+2)/(record.possible+4);
+  const rating=skill===null?null:weight*skill+(1-weight)*adjust;
+  return {...p,seed,skill,adjust,rating,record};
+ });
+ arr.sort((a,b)=>(b.rating??-999)-(a.rating??-999)||(+a.handicap||0)-(+b.handicap||0)||a.name.localeCompare(b.name));
+ return {year,arr,source:model.season,eligible:eligible.length};
 }
 const api={effectiveHoles,materializeCup,contest,score,event,playerMatches,rankings};if(typeof module!=='undefined')module.exports=api;else root.GGA_RESULTS=api;
 })(typeof window==='undefined'?globalThis:window);

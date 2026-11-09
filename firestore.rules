@@ -252,24 +252,36 @@ service cloud.firestore {
    return !('revision' in d) ? !('revision' in old) :
     d.revision==old.get('revision',0)+1
     && !exists(/databases/$(database)/documents/scoreAudit/$(id+'_'+string(d.revision)))
-    && getAfter(/databases/$(database)/documents/scoreAudit/$(id+'_'+string(d.revision))).data.diff(d).affectedKeys().hasOnly(['before','actor','undoOf']);
+    && getAfter(/databases/$(database)/documents/scoreAudit/$(id+'_'+string(d.revision))).data.diff(d).affectedKeys().hasOnly(['before','actor','undoOf','roundIndex','matchIndex']);
+  }
+  function scoreBaselineMatches(d){
+   let m=get(/databases/$(database)/documents/public/clubhouse).data.liveCup.rounds[d.roundIndex].matches[d.matchIndex];
+   return m.id==d.matchId && m.holes[d.hole]==d.before;
+  }
+  function scoreUndoMatches(scoreId,d){
+   let target=get(/databases/$(database)/documents/scoreAudit/$(scoreId+'_'+string(d.undoOf))).data;
+   return target.before==d.winner && target.undoOf==0 && (owner()||self(target.actor));
   }
   function validScoreAudit(id,d){
    let scoreId=d.matchId+'_'+string(d.hole);
    let path=/databases/$(database)/documents/liveScores/$(scoreId);
    let old=exists(path)?get(path).data:{};
    let next=getAfter(path).data;
-   return d.keys().hasAll(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt'])
-    && d.keys().hasOnly(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt'])
-    && validLiveScore(scoreId,next) && scoringParticipant(next)
-    && d.diff(next).affectedKeys().hasOnly(['before','actor','undoOf'])
+   return d.keys().hasAll(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt','roundIndex','matchIndex'])
+    && d.keys().hasOnly(['matchId','hole','winner','before','actor','generation','revision','undoOf','updatedAt','roundIndex','matchIndex'])
+    // The required increment and matching post-write score force a score write,
+    // whose own rule validates schema, permissions and the match lock.
+    && next.updatedAt==request.time
+    && d.diff(next).affectedKeys().hasOnly(['before','actor','undoOf','roundIndex','matchIndex'])
+    && d.roundIndex is int && d.roundIndex>=0 && d.roundIndex<30
+    && d.matchIndex is int && d.matchIndex>=0 && d.matchIndex<6
     && d.actor==get(/databases/$(database)/documents/members/$(request.auth.uid)).data.playerId
     && d.actor is string && d.actor.size()<=64 && d.before in [null,'A','B','halve']
-    && (!exists(path)||d.before==old.winner)
+    && d.before!=d.winner && (exists(path)?d.before==old.winner:scoreBaselineMatches(d))
     && d.revision==old.get('revision',0)+1 && id==scoreId+'_'+string(d.revision)
     && d.undoOf is int && (d.undoOf==0 ||
      (d.undoOf==old.get('revision',0) && d.undoOf>0 && old.generation==d.generation
-      && get(/databases/$(database)/documents/scoreAudit/$(scoreId+'_'+string(d.undoOf))).data.before==d.winner));
+      && scoreUndoMatches(scoreId,d)));
   }
   match /scoreAudit/{id} {
    allow read: if active();
