@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),{change,undoValue}=require('../score-history.js');
+const first=change({matchId:'m',hole:0,current:null,before:null,value:'A',actor:'a',generation:0,updatedAt:1});
+assert.equal(first.id,'m_0_1');assert.equal(first.record.before,null);
+const correction=change({matchId:'m',hole:0,current:first.score,before:'A',value:'B',actor:'b',generation:0,updatedAt:2});
+assert.equal(correction.score.revision,2);assert.equal(undoValue(correction.score,correction.record,0),'A');
+assert.throws(()=>undoValue(correction.score,first.record,0),/changed/);
+assert.throws(()=>undoValue(correction.score,correction.record,1),/changed/);
+const undo=change({matchId:'m',hole:0,current:correction.score,before:'B',value:'A',actor:'a',generation:0,updatedAt:3,undoOf:2});
+assert.equal(undo.record.undoOf,2);assert.equal(undo.record.before,'B');assert.equal(undo.score.revision,3);
+assert.throws(()=>undoValue(undo.score,correction.record,0),/changed/);
+console.log('PASS: score history revisions, prior results, undo as new record, stale and reopened undo rejected');

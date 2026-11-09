@@ -78,21 +78,42 @@ function cupOdds(a,b,projections){
  return '<div aria-label="Ryder Cup projections"><h3>'+(p.settled?'Scheduled Cup points decided':'Ryder Cup win chance')+'</h3><p><strong>'+odds(team('A'),team('B'),p,'Cup tie')+'</strong></p><p class="hint">'+(p.total/4-a-b)+' of '+p.total/4+' points remaining'+(p.unresolved?' · '+p.unresolved/4+' unresolved points on final scorecards excluded':'')+' · Model projection based on all scheduled matchups and recorded holes. A tied Cup is shown separately.</p></div>';
 }
 const holePositions=new Map();
+const scoreLabel=v=>v==='halve'?'Tied':v?team(v)+' won':'Not played';
+const pendingFor=(id,i)=>(window.GGA_PENDING_SCORES?.()||[]).find(x=>x.id===id&&x.hole===i);
+function scoreHistory(m,r){
+ const lineage=new Set([m.id,...(data().lineupHistory||[]).filter(x=>x.lineageId===(m.lineageId||m.id)).map(x=>x.before.matchId)]);
+ const archived=(data().scoreArchive||[]).flatMap(x=>(x.audit||[]).filter(a=>x.mapping[a.matchId]===m.id).map(a=>({...a,archived:true})));
+ const rows=[...(window.GGA_SCORE_AUDIT?.entries()||[])].filter(([,x])=>lineage.has(x.matchId)).map(([id,x])=>({...x,id})).concat(archived).sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0)||b.revision-a.revision);
+ return '<details class="score-history"><summary>Score history · '+rows.length+' changes</summary><p class="hint">History starts with the updated scorer. Undo adds a new change and is available only for the latest result on a hole, before the match is reopened.</p>'+rows.map(x=>{
+  const current=window.GGA_SCORE_DOCS?.get(m.id+'_'+x.hole),canUndo=!x.undoOf&&(g.isOwner()||g.getUser?.()?.id===x.actor)&&!x.archived&&x.matchId===m.id&&editable(m,r)&&current?.revision===x.revision&&x.generation===lifecycle(m).generation;
+  const date=x.updatedAt?.toDate?.()||(x.updatedAt?.seconds?new Date(x.updatedAt.seconds*1000):null);
+  return '<article class="score-change"><strong>Hole '+(x.hole+1)+' · '+esc(scoreLabel(x.before))+' → '+esc(scoreLabel(x.winner))+'</strong><p>'+esc(names([x.actor]))+' · '+esc(date?date.toLocaleString():'Server confirmed')+(x.undoOf?' · Undo': '')+(x.archived||x.matchId!==m.id?' · Previous scorecard':'')+'</p>'+(canUndo?'<button class="btn btn-secondary" data-score-undo="'+esc(x.id)+'" '+((window.GGA_PENDING_SCORES?.()||[]).length?'disabled':'')+'>Undo this change</button>':'')+'</article>';
+ }).join('')+'</details>';
+}
+function holeControls(r,m,i,can){
+ const hs=holes(m),pending=pendingFor(m.id,i),v=pending?pending.winner:hs[i],waiting=pending&&['sending','conflict','blocked'].includes(pending.status);
+ const state=pending?({pending:'Saved on this device · waiting to sync',sending:'Syncing this hole…',conflict:'Newer score found · review the score queue above',blocked:'Edit blocked · review the score queue above'}[pending.status]):hs[i]!=null?(window.GGA_BACKEND_CONFIGURED?'Server confirmed':'Saved on this device'):'Choose the agreed result below';
+ return '<section class="hole-entry" aria-label="Score hole '+(i+1)+'"><div class="entry-heading"><h4>Hole '+(i+1)+' result</h4><span>'+esc(v==null?'Not played':scoreLabel(v))+'</span></div><div class="winner-buttons">'+[['A',names(m.a)],['halve','Hole tied'],['B',names(m.b)]].map(([value,label])=>'<button class="btn score-choice '+(v===value?'btn-gold':'btn-secondary')+'" aria-pressed="'+(v===value)+'" data-hole-result="'+value+'" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'" '+(!can||busy||waiting?'disabled':'')+'><small>'+esc(value==='halve'?'HALVE':team(value)+' WINS')+'</small><strong>'+esc(label)+'</strong>'+(v===value?'<span aria-hidden="true">✓</span>':'')+'</button>').join('')+'</div><p class="hole-save-state" role="status">'+esc(can?state:!r.started?'Round not started':stateLabel(r,m)+' · scoring locked')+'</p><div class="entry-actions">'+(can&&v!=null?'<button class="btn btn-secondary" data-hole-result="clear" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'" '+(waiting?'disabled':'')+'>Clear result</button>':'')+(i<17?'<button class="btn btn-gold" data-hole-nav="'+(i+1)+'" data-hole-match="'+m.id+'">Next hole →</button>':'<span>Last hole · review your scorecard below</span>')+'</div></section>'+
+ '<section class="round-scorecard" aria-label="18-hole scorecard"><h4>Your scorecard <small>'+hs.filter(x=>x!=null).length+'/18 confirmed</small></h4><p class="hint">Tap any hole to review or correct it. ◷ means a device edit is awaiting confirmation.</p>'+[0,9].map(start=>'<p class="nine-label">'+(start?'BACK NINE':'FRONT NINE')+'</p><div class="hole-strip">'+hs.slice(start,start+9).map((x,k)=>{const n=start+k,p=pendingFor(m.id,n),display=p?p.winner:x;return '<button class="hole-chip '+(n===i?'selected':'')+'" data-result="'+(display||'')+'" data-hole-nav="'+n+'" data-hole-match="'+m.id+'" aria-current="'+(n===i?'step':'false')+'" aria-label="Hole '+(n+1)+': '+esc(scoreLabel(display))+(p?', pending':'')+'"><small>Hole '+(n+1)+'</small><strong>'+esc(display==='halve'?'TIE':display||'—')+'</strong>'+(p?'<span aria-hidden="true">◷</span>':'')+'</button>';}).join('')+'</div>').join('')+'<p class="hint">A: '+esc(team('A'))+' · B: '+esc(team('B'))+' · TIE: halved hole</p></section>'+scoreHistory(m,r);
+}
 function currentHole(m){if(!holePositions.has(m.id)){const next=holes(m).findIndex(h=>h==null);holePositions.set(m.id,next<0?17:next);}return holePositions.get(m.id);}
 function card(r,m,detail,p){
  if(!g.isOwner()&&![...m.a,...m.b].includes(g.getUser?.()?.id))return spectatorSummary(r,m,p);
  const hs=holes(m),can=editable(m,r),c=contest(hs),i=currentHole(m),course=r.course||window.GGA_COURSES?.getForYear?.(2027),h=course?.holes?.find(h=>h.number===i+1);
- const nav=(n,label)=>'<button class="btn btn-secondary" data-hole-nav="'+n+'" data-hole-match="'+m.id+'" '+(n<0||n>17?'disabled':'')+'>'+label+'</button>';
+ const nav=(n,label)=>'<button class="btn btn-secondary" data-hole-nav="'+n+'" data-hole-match="'+m.id+'" '+(n<0||n>17?'disabled':'')+' aria-label="'+(n<i?'Previous hole':'Next hole')+'">'+label+'</button>';
  const choices=[['A',names(m.a)],['halve','Hole tied'],['B',names(m.b)]];
  return '<article class="live-match round-app"><div class="round-status">'+esc(stateLabel(r,m))+' · '+esc(formatLabel(r,m))+'</div><h3>'+esc(names(m.a))+' <span>vs</span> '+esc(names(m.b))+'</h3><div class="match-standing">'+status(c)+'<small>'+c.played+' of 18 holes recorded</small></div>'+
  (!detail?'<button class="btn btn-gold" data-live-open="'+m.id+'">Open match & scorecard</button>':
- '<div class="hole-stage"><div class="hole-aerial" data-aerial-course="'+esc(course?.sourceId||'')+'" data-aerial-hole="'+(i+1)+'"></div><div class="hole-navigation">'+nav(i-1,'←')+'<div><small>CURRENT HOLE</small><h2>Hole '+(i+1)+'</h2></div>'+nav(i+1,'→')+'</div><div class="hole-metrics"><div><strong>'+esc(h?.par??'—')+'</strong><small>PAR</small></div><div><strong>'+esc(h?.yards??'—')+'</strong><small>YARDS</small></div><div><strong>'+esc(h?.strokeIndex??'—')+'</strong><small>INDEX</small></div></div><p class="hint">'+esc(course?course.name+' · '+course.tee+' tees':'Select a course in Golf Courses for hole details.')+'</p><button class="btn btn-secondary" data-map-round="'+r.id+'" data-hole-map="'+(i+1)+'">Satellite view ↗</button><p class="hint" id="hole-map-status-'+m.id+'"></p></div><div class="hole-entry"><h4>Who won this hole?</h4><div class="winner-buttons">'+choices.map(([value,label])=>'<button class="btn '+(hs[i]===value?'btn-gold':'btn-secondary')+'" aria-pressed="'+(hs[i]===value)+'" data-hole-result="'+value+'" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'" '+(!can||busy?'disabled':'')+'>'+esc(label)+'</button>').join('')+'</div><p class="hint">'+(can?'Tap the agreed result. Saved scores sync to the leaderboard.':!r.started?'This round has not started.':'Scoring is locked for this match.')+'</p>'+(can?'<button class="btn btn-secondary btn-tiny" data-hole-result="clear" data-score-match="'+m.id+'" data-score-round="'+r.id+'" data-score-hole="'+i+'">Clear hole result</button>':'')+'</div><details class="round-scorecard"><summary>Full scorecard · '+c.played+'/18</summary><div class="hole-strip">'+hs.map((v,n)=>'<button class="hole-chip '+(n===i?'selected':'')+'" data-hole-nav="'+n+'" data-hole-match="'+m.id+'" aria-label="Hole '+(n+1)+'"><small>Hole '+(n+1)+'</small><strong>'+esc(v==='halve'?'AS':v?team(v):'—')+'</strong></button>').join('')+'</div></details>')+
+ '<div class="hole-stage"><div class="hole-aerial" data-aerial-course="'+esc(course?.sourceId||'')+'" data-aerial-hole="'+(i+1)+'"></div><div class="hole-navigation">'+nav(i-1,'←')+'<div><small>CURRENT HOLE</small><h2>Hole '+(i+1)+'</h2></div>'+nav(i+1,'→')+'</div><div class="hole-metrics"><div><strong>'+esc(h?.par??'—')+'</strong><small>PAR</small></div><div><strong>'+esc(h?.yards??'—')+'</strong><small>YARDS</small></div><div><strong>'+esc(h?.strokeIndex??'—')+'</strong><small>INDEX</small></div></div><p class="hint">'+esc(course?course.name+' · '+course.tee+' tees':'Select a course in Golf Courses for hole details.')+'</p><button class="btn btn-secondary" data-map-round="'+r.id+'" data-hole-map="'+(i+1)+'">Satellite view ↗</button><p class="hint" id="hole-map-status-'+m.id+'"></p></div>'+holeControls(r,m,i,can))+
  segments(hs,m)+matchOdds(r,m,hs,p||projection(r,m,hs))+
  '<p class="hint">Holes won: '+hs.filter(h=>h==='A').length+' – '+hs.filter(h=>h==='B').length+' · Tied '+hs.filter(h=>h==='halve').length+'</p>'+lifecyclePanel(r,m)+(detail?history(m):'')+(g.isOwner()?'<details><summary>Owner controls</summary><button class="btn btn-secondary" data-live-edit="'+m.id+'">Edit players & points</button><button class="btn btn-danger" data-live-remove="'+m.id+'" data-live-round="'+r.id+'">Remove matchup</button></details>':'')+'</article>';
 }
 async function saveResult(roundId,matchId,i,value){
  const r=data().rounds.find(x=>x.id===roundId),m=r?.matches.find(x=>x.id===matchId);
  if(busy||!m||!editable(m,r)||!Number.isInteger(i)||i<0||i>17||![null,'A','B','halve'].includes(value))return;
+ const queued=pendingFor(m.id,i),prior=queued?queued.winner:holes(m)[i];
+ if(prior===value)return;
+ if(prior!=null&&!confirm('Hole '+(i+1)+': change '+scoreLabel(prior)+' to '+scoreLabel(value)+'?'))return;
  if(window.GGA_BACKEND_CONFIGURED){busy=true;render();try{const result=await window.GGA_SAVE_HOLE(m.id,i,value,holes(m)[i]);g.notify(result?.pending?'Saved on this device. Waiting to sync.':'Hole saved and confirmed by server.');}catch(e){g.notify('Hole did not save: '+String(e.message||e));}finally{busy=false;render();}}
  else{m.holes[i]=value;commit('Hole saved on this device.');}
 }
@@ -198,8 +219,12 @@ panel.addEventListener('click',async e=>{
   }catch(e){g.notify('Match unchanged: '+e.message);}finally{busy=false;render();}return;
  }
  if(busy)return;const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.scoreUndo){
+  if(!confirm('Undo this hole change? A newer result or locked match will prevent undo.'))return;
+  busy=true;render();try{await window.GGA_UNDO_SCORE(t.dataset.scoreUndo);g.notify('Undo confirmed. The original change remains in history.');}catch(e){g.notify('Nothing undone: '+e.message);}finally{busy=false;render();}return;
+ }
  if(t.hasAttribute('data-round-course-search')){await searchRoundCourses(t.closest('form').elements.namedItem('course-search').value);return;}
- if(t.dataset.holeNav!==undefined){const n=Number(t.dataset.holeNav);if(Number.isInteger(n)&&n>=0&&n<18){holePositions.set(t.dataset.holeMatch,n);render();}return;}
+ if(t.dataset.holeNav!==undefined){const n=Number(t.dataset.holeNav);if(Number.isInteger(n)&&n>=0&&n<18){holePositions.set(t.dataset.holeMatch,n);render();const entry=Array.from(panel.querySelectorAll?.('.hole-entry')||[]).find(el=>el.querySelector('[data-score-match]')?.dataset.scoreMatch===t.dataset.holeMatch);if(entry){entry.tabIndex=-1;entry.focus({preventScroll:true});entry.scrollIntoView({block:'center'});}}return;}
  if(t.dataset.holeResult){await saveResult(t.dataset.scoreRound,t.dataset.scoreMatch,Number(t.dataset.scoreHole),t.dataset.holeResult==='clear'?null:t.dataset.holeResult);return;}
  if(t.dataset.holeMap){await openSatellite(Number(t.dataset.holeMap),t);return;}
  if(t.dataset.liveView){liveView=t.dataset.liveView;selectedRound='all';selectedMatch='';editing='';render();return;}
@@ -235,11 +260,13 @@ panel.addEventListener('click',async e=>{
 // render normally, so successful saves and Cancel discard their old form state.
 function refreshLive(){
  const active=document.activeElement;
+ const expanded=Array.from(panel.querySelectorAll?.('details')||[]).map(el=>el.open);
  const drafts=Array.from(panel.querySelectorAll?.('form')||[]).map(form=>({
   id:form.id,round:form.dataset.liveAdd,edit:form.dataset.edit,
   fields:Array.from(form.elements||[]).filter(el=>el.name&&!['round-course','round-tee'].includes(el.name)).map(el=>({name:el.name,value:el.value,focused:el===active,start:el.selectionStart,end:el.selectionEnd}))
  }));
  render();
+ Array.from(panel.querySelectorAll?.('details')||[]).forEach((el,i)=>{el.open=!!expanded[i];});
  for(const draft of drafts){
   const form=Array.from(panel.querySelectorAll?.('form')||[]).find(f=>f.id===draft.id&&f.dataset.liveAdd===draft.round&&f.dataset.edit===draft.edit);
   if(!form)continue;
@@ -254,5 +281,5 @@ function refreshLive(){
 }
 const prior=window.GGA_UPGRADE_RENDER;window.GGA_UPGRADE_RENDER=()=>{prior?.();refreshLive();};
 const priorTab=window.GGA_ON_TAB;window.GGA_ON_TAB=t=>{priorTab?.(t);if(t==='live')render();};
-window.GGA_LIVE={render,score,contest};render();
+window.GGA_LIVE={render,refresh:refreshLive,score,contest};render();
 })();

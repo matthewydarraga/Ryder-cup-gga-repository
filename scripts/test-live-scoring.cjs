@@ -96,6 +96,12 @@ const target={dataset:{liveRound:r.id,liveMatch:r.matches[0].id,liveHole:'0'},va
  win.GGA_MATCH_STATES=new Map([[m.id,{status:'final',confirmed:[]}]]);
  win.GGA_LIVE.render();
  assert(panel.innerHTML.includes('unresolved points excluded from projections'));
+ user='a';click({liveView:'mine'});
+ withCourse.started=true;win.GGA_PENDING_SCORES=()=>[{id:'course-match',hole:0,winner:'B',status:'pending'}];win.GGA_LIVE.render();
+ assert(panel.innerHTML.includes('waiting to sync'));assert(panel.innerHTML.includes('B won'));assert(panel.innerHTML.includes('0/18 confirmed'),'Pending result must not count in confirmed standings');
+ await click({holeNav:'17',holeMatch:'course-match'});assert(panel.innerHTML.includes('Last hole'));assert(panel.innerHTML.includes('aria-current="step"'));
+ win.GGA_PENDING_SCORES=()=>[];win.GGA_SCORE_AUDIT=new Map([['course-match_0_1',{matchId:'course-match',hole:0,before:null,winner:'A',actor:'a',generation:0,revision:1,undoOf:0}]]);win.GGA_SCORE_DOCS=new Map([['course-match_0',{revision:1,winner:'A',generation:0}]]);win.GGA_LIVE.render();assert(panel.innerHTML.includes('Undo this change'));
+ win.GGA_MATCH_STATES=new Map([['course-match',{status:'final',generation:0,confirmed:[],revision:1}]]);win.GGA_LIVE.render();assert(!panel.innerHTML.includes('Undo this change'),'Final scorecard cannot undo');
  const neutral=predict(empty(),[{}],[{}]);assert(Math.abs(neutral.a-neutral.b)<1e-9);assert(predict(empty(),[{handicap:5}],[{handicap:20}]).a>neutral.a);
  console.log('PASS: legacy/new points, ties, custom weights, early clinches, 1v1–4v4 mocks, isolation, duplicate prevention, owner edits, participant permissions, pause, match/overall views and cloud score overlay');
 })().catch(e=>{console.error(e);process.exitCode=1;});
